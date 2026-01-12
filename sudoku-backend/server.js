@@ -99,6 +99,15 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
 
     } catch (error) {
         console.error("Gemini Scan Error:", error);
+        
+        // AUTO-DIAGNOSTIC: List available models to logs
+        try {
+            const modelList = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" }).listModels(); // This might not work in all SDK versions
+            console.log("Available models for this key:", JSON.stringify(modelList));
+        } catch (e) {
+            console.log("Could not list models automatically.");
+        }
+
         // Return the specific error message to the client for debugging
         res.status(500).json({ error: error.message, details: error.toString() });
     }
