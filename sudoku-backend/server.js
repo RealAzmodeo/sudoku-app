@@ -50,6 +50,10 @@ const db = new sqlite3.Database('./sudoku.db', (err) => {
 // --- API ROUTES ---
 
 // 0. AI SCAN ROUTE (New!)
+app.get('/api/ping', (req, res) => {
+    res.json({ status: "alive", timestamp: new Date() });
+});
+
 app.post('/api/scan', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
