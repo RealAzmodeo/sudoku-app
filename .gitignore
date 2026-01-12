@@ -1,0 +1,15 @@
+node_modules
+.expo
+dist
+.env
+npm-debug.log
+yarn-error.log
+sudoku.db
+*.db-journal
+.DS_Store
+.vscode
+.idea
+android/
+ios/
+coverage/
+.gradle_cache/
