@@ -160,7 +160,7 @@ app.get('/api/leaderboard', (req, res) => {
   });
 });
 
-// Start Server
+// Start Server - Version 1.1 with Gemini
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
