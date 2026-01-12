@@ -117,5 +117,32 @@ export const api = {
         console.log("Sync failed, keeping data queued.");
         return false;
     }
+  },
+
+  // Scan Image via Gemini
+  scanSudokuImage: async (uri: string) => {
+    try {
+        const formData = new FormData();
+        // @ts-ignore - React Native FormData expects an object with uri, name, type
+        formData.append('image', {
+            uri,
+            name: 'sudoku.jpg',
+            type: 'image/jpeg',
+        });
+
+        const response = await fetch(`${API_URL}/api/scan`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        if (!response.ok) throw new Error("Scan failed");
+        return await response.json();
+    } catch (e) {
+        console.error("API Error (scanSudokuImage):", e);
+        return null;
+    }
   }
 };

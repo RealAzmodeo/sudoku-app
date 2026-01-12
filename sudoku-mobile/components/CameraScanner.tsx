@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { scanSudokuFromImage } from '../services/ocrService';
+import { api } from '../utils/api';
 import { useLanguage } from '../utils/i18n';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import clsx from 'clsx';
@@ -18,18 +18,15 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onScanCom
   const processImage = async (uri: string) => {
     setIsProcessing(true);
     try {
-      // The image is already cropped by the native editor, so we just scan it
-      const grid = await scanSudokuFromImage(uri);
+      // Send image to Gemini API
+      const result = await api.scanSudokuImage(uri);
       
-      // Basic validation: Did we find at least a few numbers?
-      const numbersFound = grid?.flat().filter(n => n !== 0).length || 0;
-
-      if (grid && numbersFound >= 3) { // Threshold to consider it a success
-        onScanComplete(grid);
+      if (result && result.grid) {
+        onScanComplete(result.grid);
       } else {
         Alert.alert(
-          "No numbers found", 
-          "Could not detect a Sudoku grid. Make sure to crop exactly around the puzzle border.",
+          "Scan Failed", 
+          "Could not detect a Sudoku grid. Make sure the image is clear and cropped.",
           [{ text: "Try Again", onPress: () => setIsProcessing(false) }]
         );
       }
