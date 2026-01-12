@@ -8,8 +8,8 @@ const multer = require('multer');
 // Configure Gemini
 const GEN_AI_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUg_kvKuzz-Rul8GqHXXf1TzBOKMN1zp0";
 const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
-// Using the stable version specific model name
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+// Testing with 1.0 model to see if deploy works
+const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
 // Configure Multer (Uploads in memory)
 const upload = multer({ storage: multer.memoryStorage() });
