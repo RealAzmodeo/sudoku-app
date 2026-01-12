@@ -78,16 +78,24 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
         const text = response.text();
+        
+        console.log("Gemini Raw Response:", text); // Debugging
 
         // Clean up markdown if Gemini adds it (```json ... ```)
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const grid = JSON.parse(cleanText);
-
-        res.json({ grid });
+        
+        try {
+            const grid = JSON.parse(cleanText);
+            res.json({ grid });
+        } catch (parseError) {
+            console.error("JSON Parse Error. Raw text was:", cleanText);
+            res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
+        }
 
     } catch (error) {
         console.error("Gemini Scan Error:", error);
-        res.status(500).json({ error: "Failed to analyze sudoku image." });
+        // Return the specific error message to the client for debugging
+        res.status(500).json({ error: error.message, details: error.toString() });
     }
 });
 
