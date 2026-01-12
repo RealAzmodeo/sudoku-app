@@ -98,14 +98,25 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Gemini Scan Error:", error);
+        console.error("--- GEMINI DIAGNOSTIC START ---");
+        console.error("Error Message:", error.message);
         
-        // Return the specific error message to the client for debugging
+        try {
+            // Attempt to list all models available to this API Key
+            // This is the most reliable way to find the correct string
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${GEN_AI_KEY}`);
+            const data = await response.json();
+            console.log("ALL AVAILABLE MODELS:", JSON.stringify(data.models?.map(m => m.name)));
+        } catch (diagError) {
+            console.error("Diagnostic failed:", diagError.message);
+        }
+        
+        console.error("--- GEMINI DIAGNOSTIC END ---");
+
         res.status(500).json({ 
             error: "Gemini Error", 
             message: error.message,
-            attemptedModel: "gemini-1.5-flash",
-            suggestion: "Check Render logs for list of available models"
+            suggestion: "Please check Render Logs for 'ALL AVAILABLE MODELS' list."
         });
     }
 });
