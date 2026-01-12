@@ -11,7 +11,8 @@ const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
 // This specific model is confirmed to work with the user's key
 const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
-// Configure Multer (Uploads in memory)const upload = multer({ storage: multer.memoryStorage() });
+// Configure Multer (Uploads in memory)
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = 3000;
