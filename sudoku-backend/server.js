@@ -8,8 +8,8 @@ const multer = require('multer');
 // Configure Gemini
 const GEN_AI_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUg_kvKuzz-Rul8GqHXXf1TzBOKMN1zp0";
 const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
-// Standard Flash model
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Using the available model confirmed via diagnostic
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // Configure Multer (Uploads in memory)
 const upload = multer({ storage: multer.memoryStorage() });
@@ -19,7 +19,7 @@ const PORT = 3000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Increase limit for images
+app.use(bodyParser.json({ limit: '50mb' })); 
 
 // Database Setup
 const db = new sqlite3.Database('./sudoku.db', (err) => {
@@ -50,7 +50,7 @@ const db = new sqlite3.Database('./sudoku.db', (err) => {
 
 // --- API ROUTES ---
 
-// 0. AI SCAN ROUTE (New!)
+// 0. AI SCAN ROUTE
 app.get('/api/ping', (req, res) => {
     res.json({ status: "alive", timestamp: new Date() });
 });
@@ -61,7 +61,7 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
             return res.status(400).json({ error: 'No image uploaded' });
         }
 
-        console.log("Analyzing image with Gemini...");
+        console.log("Analyzing image with Gemini 2.5 Flash...");
 
         // Convert buffer to base64 for Gemini
         const imagePart = {
@@ -84,9 +84,9 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
         const response = await result.response;
         const text = response.text();
         
-        console.log("Gemini Raw Response:", text); // Debugging
+        console.log("Gemini Response OK");
 
-        // Clean up markdown if Gemini adds it (```json ... ```)
+        // Clean up markdown if Gemini adds it
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
         
         try {
@@ -98,26 +98,8 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
         }
 
     } catch (error) {
-        console.error("--- GEMINI DIAGNOSTIC START ---");
-        console.error("Error Message:", error.message);
-        
-        try {
-            // Attempt to list all models available to this API Key
-            // This is the most reliable way to find the correct string
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${GEN_AI_KEY}`);
-            const data = await response.json();
-            console.log("ALL AVAILABLE MODELS:", JSON.stringify(data.models?.map(m => m.name)));
-        } catch (diagError) {
-            console.error("Diagnostic failed:", diagError.message);
-        }
-        
-        console.error("--- GEMINI DIAGNOSTIC END ---");
-
-        res.status(500).json({ 
-            error: "Gemini Error", 
-            message: error.message,
-            suggestion: "Please check Render Logs for 'ALL AVAILABLE MODELS' list."
-        });
+        console.error("Gemini Scan Error:", error);
+        res.status(500).json({ error: error.message, details: error.toString() });
     }
 });
 
