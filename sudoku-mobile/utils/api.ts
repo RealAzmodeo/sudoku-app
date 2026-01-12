@@ -4,7 +4,7 @@ import { queuePendingPuzzle, queuePendingScore, getPendingData, clearPendingData
 // REPLACE THIS IP WITH YOUR COMPUTER'S LOCAL IP ADDRESS (e.g., 'http://192.168.1.15:3000')
 // If running in Android Emulator, 'http://10.0.2.2:3000' works.
 // For real device, use your PC's IP.
-export const API_URL = 'http://192.168.1.148:3000'; 
+export const API_URL = 'https://sudoku-app-uyk3.onrender.com'; 
 
 export interface ApiScore {
   id?: number;
