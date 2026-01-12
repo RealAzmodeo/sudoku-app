@@ -14,6 +14,7 @@
     "clsx": "^2.1.1",
     "expo": "~54.0.31",
     "expo-camera": "~17.0.10",
+    "expo-clipboard": "~8.0.8",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-status-bar": "~3.0.9",

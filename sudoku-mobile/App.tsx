@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import { 
   View, 
   Text, 
@@ -35,7 +36,9 @@ import {
   Users,
   DownloadCloud,
   Cloud,
-  CloudOff
+  CloudOff,
+  Copy,
+  ClipboardPaste
 } from 'lucide-react-native';
 import { GameState, Difficulty } from './types';
 import { 
@@ -300,34 +303,76 @@ const AppContent = () => {
     }
   };
 
-  const finishSetupAndStart = () => {
+  const finishSetupAndStart = async () => {
     if (!gameState) return;
     const numericGrid = gameState.grid.map(row => row.map(cell => cell.value || 0));
     if (hasInitialConflicts(numericGrid)) {
       setError(t('conflicts'));
       return;
     }
-    let solution = gameState.solvedGrid.length === 9 ? gameState.solvedGrid : solveSudoku(numericGrid);
+    
+    // Solve it locally to ensure it's valid and to get the solution
+    let solution = solveSudoku(numericGrid);
     if (!solution) {
       setError(t('unsolvable'));
       return;
     }
-    setGameState(prev => {
-      if (!prev) return null;
-      const finalGrid = prev.grid.map(row => row.map(cell => ({
-        ...cell,
-        isInitial: cell.value !== null,
-        isValid: true
-      })));
-      return {
-        ...prev,
-        grid: finalGrid,
-        solvedGrid: solution!,
-        history: [JSON.parse(JSON.stringify(finalGrid))]
-      };
-    });
-    setPhase('PLAYING');
-    setError(null);
+
+    setLoadingMessage("Uploading Custom Puzzle...");
+    setIsScanning(true);
+
+    try {
+        // Generate a Custom ID
+        const customId = `CUSTOM-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
+        
+        // Prepare data for upload
+        const initialGridValues = gameState.grid.map(row => row.map(cell => cell.value || 0));
+        
+        // Upload to Cloud
+        await api.savePuzzle(customId, initialGridValues, solution, "CUSTOM");
+
+        setGameState(prev => {
+          if (!prev) return null;
+          const finalGrid = prev.grid.map(row => row.map(cell => ({
+            ...cell,
+            isInitial: cell.value !== null,
+            isValid: true
+          })));
+          return {
+            ...prev,
+            grid: finalGrid,
+            solvedGrid: solution!,
+            history: [JSON.parse(JSON.stringify(finalGrid))],
+            puzzleId: customId // Assign the new Cloud ID
+          };
+        });
+        
+        setPhase('PLAYING');
+        setError(null);
+        Alert.alert("Success", "Custom puzzle created! Share the ID: " + customId);
+
+    } catch (e) {
+        Alert.alert("Error", "Could not upload puzzle. You can play locally but cannot share it.");
+        // Fallback to local play if upload fails
+        setGameState(prev => {
+            if (!prev) return null;
+            const finalGrid = prev.grid.map(row => row.map(cell => ({
+              ...cell,
+              isInitial: cell.value !== null,
+              isValid: true
+            })));
+            return {
+              ...prev,
+              grid: finalGrid,
+              solvedGrid: solution!,
+              history: [JSON.parse(JSON.stringify(finalGrid))],
+              puzzleId: undefined // No ID means local only
+            };
+        });
+        setPhase('PLAYING');
+    } finally {
+        setIsScanning(false);
+    }
   };
 
   const handleOpenSaveModal = () => {
@@ -563,9 +608,14 @@ const AppContent = () => {
             </Text>
             <View className="flex-row gap-2">
               {phase === 'PLAYING' && !isGameFinished && (
-                <TouchableOpacity onPress={handleOpenSaveModal} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                   <Save size={18} color="#3b82f6" />
-                </TouchableOpacity>
+                <>
+                    <TouchableOpacity onPress={() => fetchLeaderboard(gameState?.puzzleId)} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
+                        <Trophy size={18} color="#f59e0b" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleOpenSaveModal} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
+                       <Save size={18} color="#3b82f6" />
+                    </TouchableOpacity>
+                </>
               )}
               <TouchableOpacity onPress={toggleLanguage} className={clsx("p-2 rounded-xl border shadow-sm flex-row items-center gap-1 px-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
                 <Text className="text-[10px] font-black text-slate-500">{language.toUpperCase()}</Text>
@@ -636,8 +686,8 @@ const AppContent = () => {
                         </TouchableOpacity>
 
                        <TouchableOpacity 
-                        onPress={() => Alert.alert(t('comingSoon'), t('subtitle'))} 
-                        className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1 opacity-40", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}
+                        onPress={handleOpenScanner} 
+                        className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}
                        >
                           <Camera size={20} className="text-blue-500" color="#3b82f6" />
                           <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>{t('scanImage')}</Text>
@@ -687,12 +737,21 @@ const AppContent = () => {
                   <View className={clsx("mx-4 mb-3 p-3 rounded-2xl shadow-sm border flex-col gap-2", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100")}>
                       {/* Top Row: ID and Toggle */}
                       <View className="flex-row justify-between items-center border-b border-dashed border-slate-200 dark:border-zinc-800 pb-2 mb-1">
-                          <View className="flex-row items-center gap-1">
+                          <TouchableOpacity 
+                            onPress={async () => {
+                                if(gameState?.puzzleId) {
+                                    await Clipboard.setStringAsync(gameState.puzzleId);
+                                    Alert.alert("Copied!", "Puzzle ID copied to clipboard. Share it with family!");
+                                }
+                            }}
+                            className="flex-row items-center gap-2 active:opacity-50"
+                          >
                              <Users size={12} color={isDarkMode ? "#94a3b8" : "#64748b"} />
                              <Text className="text-[10px] font-mono text-slate-500">
-                                {gameState?.puzzleId ? gameState.puzzleId : "Local Game"}
+                                {gameState?.puzzleId ? gameState.puzzleId.substring(0, 15) + "..." : "Local Game"}
                              </Text>
-                          </View>
+                             <Copy size={10} color={isDarkMode ? "#94a3b8" : "#64748b"} />
+                          </TouchableOpacity>
                           <TouchableOpacity 
                             onPress={() => setGameState(p => p ? ({ ...p, settings: { ...p.settings, autoCheck: !p.settings.autoCheck } }) : null)} 
                             className="flex-row items-center gap-1"
@@ -857,13 +916,26 @@ const AppContent = () => {
             <View className="flex-1 bg-black/50 items-center justify-center p-6">
                 <View className={clsx("w-full rounded-3xl p-6", isDarkMode ? "bg-zinc-900" : "bg-white")}>
                     <Text className={clsx("text-lg font-black mb-4", textClass)}>Join Game</Text>
-                    <TextInput 
-                        className={clsx("w-full px-4 py-3 rounded-xl text-base font-bold border mb-4", isDarkMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}
-                        placeholder="Paste Puzzle ID (e.g. MEDIUM-123...)"
-                        placeholderTextColor={isDarkMode ? "#52525b" : "#94a3b8"}
-                        value={joinGameId}
-                        onChangeText={setJoinGameId}
-                    />
+                    
+                    <View className="flex-row gap-2 mb-4">
+                        <TextInput 
+                            className={clsx("flex-1 px-4 py-3 rounded-xl text-base font-bold border", isDarkMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}
+                            placeholder="Paste Puzzle ID..."
+                            placeholderTextColor={isDarkMode ? "#52525b" : "#94a3b8"}
+                            value={joinGameId}
+                            onChangeText={setJoinGameId}
+                        />
+                        <TouchableOpacity 
+                            onPress={async () => {
+                                const text = await Clipboard.getStringAsync();
+                                setJoinGameId(text);
+                            }}
+                            className={clsx("px-4 items-center justify-center rounded-xl border", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-slate-100 border-slate-200")}
+                        >
+                            <ClipboardPaste size={20} color={isDarkMode ? "white" : "black"} />
+                        </TouchableOpacity>
+                    </View>
+
                     <View className="flex-row gap-3">
                         <TouchableOpacity onPress={() => setShowJoinModal(false)} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-zinc-800 items-center">
                             <Text className={clsx("font-bold", textClass)}>Cancel</Text>

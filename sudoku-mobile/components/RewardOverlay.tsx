@@ -32,7 +32,7 @@ const FlyingEmoji = ({ type, startPos, onComplete }: RewardProps) => {
 
   useEffect(() => {
     // 1. Pop up
-    scale.value = withSpring(2.5);
+    scale.value = withSpring(1.5);
     
     // 2. Fly up and random side
     const randomX = (Math.random() - 0.5) * 200;
@@ -81,7 +81,7 @@ export const RewardOverlay: React.FC<RewardOverlayProps> = ({ rewards, onRemove 
   if (rewards.length === 0) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 10 }]} pointerEvents="none">
       {rewards.map(r => (
         <FlyingEmoji 
           key={r.id} 
