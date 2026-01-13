@@ -54,21 +54,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       </View>
 
       <View className="flex-row flex-wrap justify-between gap-y-2">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-          <TouchableOpacity
-            key={num}
-            onPress={() => onNumberClick(num)}
-            className={clsx(
-                "w-[30%] aspect-[2/1] rounded-xl items-center justify-center border shadow-sm",
-                isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-200"
-            )}
-          >
-            <Text className={clsx("text-2xl font-medium", isDarkMode ? "text-blue-400" : "text-blue-600")}>{num}</Text>
-            {numberCounts[num] >= 9 && (
-               <View className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full" />
-            )}
-          </TouchableOpacity>
-        ))}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+          const isCompleted = numberCounts[num] >= 9;
+          return (
+            <TouchableOpacity
+              key={num}
+              disabled={isCompleted}
+              onPress={() => onNumberClick(num)}
+              className={clsx(
+                  "w-[30%] aspect-[2/1] rounded-xl items-center justify-center border",
+                  isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-200",
+                  isCompleted ? "opacity-20" : "shadow-sm"
+              )}
+            >
+              <Text 
+                className={clsx("text-3xl font-black", isDarkMode ? "text-blue-400" : "text-blue-600")}
+                style={{ includeFontPadding: false, textAlignVertical: 'center', marginTop: -2 }}
+              >
+                {num}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

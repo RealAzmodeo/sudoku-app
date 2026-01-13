@@ -1528,7 +1528,16 @@ const AppContent = () => {
             onRemove={(id) => setRewards(prev => prev.filter(r => r.id !== id))} 
         />
         
-        <ConfettiCannon count={200} origin={{x: -10, y: 0}} autoStart={false} ref={confettiRef} fadeOut={true} />
+        {/* Confetti should be on top of everything */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <ConfettiCannon 
+                count={200} 
+                origin={{x: width / 2, y: -50}} 
+                autoStart={false} 
+                ref={confettiRef} 
+                fadeOut={true} 
+            />
+        </View>
       </SafeAreaView>
   );
 };
