@@ -147,6 +147,7 @@ const AppContent = () => {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [communityPuzzles, setCommunityPuzzles] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
   const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
@@ -918,6 +919,24 @@ const AppContent = () => {
             ) : phase === 'COMMUNITY' ? (
                 <View className="flex-1 p-6 pt-2">
                     <NavHeader title="Community" onBack={() => setPhase('PLAY_MENU')} />
+                    
+                    {/* Search Bar */}
+                    <View className={clsx("mb-4 px-4 py-3 rounded-xl border flex-row items-center gap-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
+                        <View className="opacity-50"><Globe size={20} color={isDarkMode ? "white" : "black"} /></View>
+                        <TextInput 
+                            className={clsx("flex-1 font-bold text-base", textClass)}
+                            placeholder="Buscar por ID, Autor..."
+                            placeholderTextColor={isDarkMode ? "#52525b" : "#94a3b8"}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery("")}>
+                                <X size={18} color={isDarkMode ? "#71717a" : "#94a3b8"} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
                     {communityPuzzles.length === 0 ? (
                         <View className="flex-1 items-center justify-center">
                             <ActivityIndicator size="large" color="#3b82f6" />
@@ -925,10 +944,17 @@ const AppContent = () => {
                         </View>
                     ) : (
                         <FlatList 
-                            data={communityPuzzles}
+                            data={communityPuzzles.filter(p => 
+                                p.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                p.difficulty.toLowerCase().includes(searchQuery.toLowerCase())
+                            )}
                             keyExtractor={(item) => item.id}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ paddingBottom: 40 }}
+                            ListEmptyComponent={
+                                <Text className="text-slate-500 text-center mt-10">No se encontraron resultados.</Text>
+                            }
                             renderItem={({ item }) => (
                                 <View 
                                     className={clsx("p-4 mb-3 rounded-2xl border flex-row items-center justify-between", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
