@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -134,6 +136,7 @@ const AppContent = () => {
   // Rewards State
   const [rewards, setRewards] = useState<{ id: string, type: string, startPos: {x:number, y:number} }[]>([]);
   const gridRef = useRef<View>(null);
+  const confettiRef = useRef<any>(null);
   const [gridPageY, setGridPageY] = useState(0);
 
   const { t, language, setLanguage } = useLanguage();
@@ -609,13 +612,24 @@ const AppContent = () => {
         let mistakes = prev.mistakes;
         if (prev.settings.autoCheck) {
           targetCell.isValid = isCorrect;
-          if (!isCorrect) mistakes += 1;
+          if (!isCorrect) {
+              mistakes += 1;
+              if (isSoundEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          } else {
+              if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
         } else {
           targetCell.isValid = true; 
+          if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
 
         const gameOver = mistakes >= prev.maxMistakes;
         const won = !gameOver && isGameWon(newGrid, prev.solvedGrid);
+        
+        if (won) {
+            if (isSoundEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            confettiRef.current?.start();
+        }
         
         const newState = {
           ...prev,
@@ -689,6 +703,7 @@ const AppContent = () => {
 
   const handleCellClick = (r: number, c: number) => {
     if(isPaused) return;
+    if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setGameState(prev => {
       if (!prev) return null;
       return { ...prev, selectedCell: [r, c] };
@@ -1343,6 +1358,7 @@ const AppContent = () => {
             onRemove={(id) => setRewards(prev => prev.filter(r => r.id !== id))} 
         />
         
+        <ConfettiCannon count={200} origin={{x: -10, y: 0}} autoStart={false} ref={confettiRef} fadeOut={true} />
       </SafeAreaView>
   );
 };
