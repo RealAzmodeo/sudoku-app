@@ -81,7 +81,8 @@ import {
   isPuzzleLocked,
   setActiveGameId,
   getActiveGameId,
-  clearActiveGameId
+  clearActiveGameId,
+  getLocalPuzzleStatuses
 } from './utils/storage';
 import { LanguageProvider, useLanguage } from './utils/i18n';
 import { api } from './utils/api';
@@ -148,6 +149,8 @@ const AppContent = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [communityPuzzles, setCommunityPuzzles] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'NEW' | 'STARTED' | 'COMPLETED'>('ALL');
+  const [localStatuses, setLocalStatuses] = useState<Record<string, 'STARTED' | 'COMPLETED'>>({});
   
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
   const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
@@ -198,8 +201,12 @@ const AppContent = () => {
 
   const handleSaveUser = async () => {
       if(tempName.trim().length > 0) {
-          await AsyncStorage.setItem('sudoku_username', tempName.trim());
-          setCurrentUser(tempName.trim());
+          const newName = tempName.trim();
+          if (currentUser && currentUser !== newName) {
+              await api.updateAuthorName(currentUser, newName);
+          }
+          await AsyncStorage.setItem('sudoku_username', newName);
+          setCurrentUser(newName);
           setShowOnboarding(false);
       } else {
           Alert.alert("Name Required", "Please enter a name to play.");
@@ -256,8 +263,12 @@ const AppContent = () => {
   }, [phase]);
 
   const fetchCommunityPuzzles = async () => {
-      const list = await api.getCommunityPuzzles();
+      const [list, statuses] = await Promise.all([
+          api.getCommunityPuzzles(),
+          getLocalPuzzleStatuses()
+      ]);
       setCommunityPuzzles(list);
+      setLocalStatuses(statuses);
   };
 
   const loadSavedGamesList = async () => {
@@ -921,7 +932,7 @@ const AppContent = () => {
                     <NavHeader title="Community" onBack={() => setPhase('PLAY_MENU')} />
                     
                     {/* Search Bar */}
-                    <View className={clsx("mb-4 px-4 py-3 rounded-xl border flex-row items-center gap-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
+                    <View className={clsx("mb-2 px-4 py-3 rounded-xl border flex-row items-center gap-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
                         <View className="opacity-50"><Globe size={20} color={isDarkMode ? "white" : "black"} /></View>
                         <TextInput 
                             className={clsx("flex-1 font-bold text-base", textClass)}
@@ -937,6 +948,25 @@ const AppContent = () => {
                         )}
                     </View>
 
+                    {/* Filters */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 mb-4 max-h-10">
+                        {(['ALL', 'NEW', 'STARTED', 'COMPLETED'] as const).map(status => (
+                            <TouchableOpacity 
+                                key={status}
+                                onPress={() => setFilterStatus(status)}
+                                className={clsx("px-4 py-2 rounded-full border", 
+                                    filterStatus === status 
+                                        ? "bg-blue-600 border-blue-600" 
+                                        : isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200"
+                                )}
+                            >
+                                <Text className={clsx("text-xs font-black capitalize", filterStatus === status ? "text-white" : textClass)}>
+                                    {status === 'ALL' ? 'Todos' : status === 'NEW' ? 'Nuevos' : status === 'STARTED' ? 'En Curso' : 'Completados'}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+
                     {communityPuzzles.length === 0 ? (
                         <View className="flex-1 items-center justify-center">
                             <ActivityIndicator size="large" color="#3b82f6" />
@@ -944,11 +974,17 @@ const AppContent = () => {
                         </View>
                     ) : (
                         <FlatList 
-                            data={communityPuzzles.filter(p => 
-                                p.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                                p.difficulty.toLowerCase().includes(searchQuery.toLowerCase())
-                            )}
+                            data={communityPuzzles.filter(p => {
+                                const matchesSearch = p.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                    (p.author && p.author.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                    p.difficulty.toLowerCase().includes(searchQuery.toLowerCase());
+                                
+                                if (!matchesSearch) return false;
+
+                                const status = localStatuses[p.id] || 'NEW';
+                                if (filterStatus === 'ALL') return true;
+                                return status === filterStatus;
+                            })}
                             keyExtractor={(item) => item.id}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ paddingBottom: 40 }}
@@ -970,7 +1006,16 @@ const AppContent = () => {
                                             )}>
                                                 {item.difficulty}
                                             </Text>
-                                            <Text className="text-[10px] text-slate-400 font-mono">
+                                            
+                                            {/* Local Status Badge */}
+                                            {localStatuses[item.id] === 'COMPLETED' && (
+                                                <View className="bg-emerald-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">HECHO</Text></View>
+                                            )}
+                                            {localStatuses[item.id] === 'STARTED' && (
+                                                <View className="bg-amber-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">EN CURSO</Text></View>
+                                            )}
+
+                                            <Text className="text-[10px] text-slate-400 font-mono ml-auto">
                                                 {new Date(item.createdAt).toLocaleDateString()}
                                             </Text>
                                         </View>

@@ -171,3 +171,26 @@ export const clearPendingData = async () => {
   await saveQueue({ scores: [], puzzles: [] });
 };
 
+export const getLocalPuzzleStatuses = async (): Promise<Record<string, 'STARTED' | 'COMPLETED'>> => {
+    try {
+        const keys = await AsyncStorage.getAllKeys();
+        const statusMap: Record<string, 'STARTED' | 'COMPLETED'> = {};
+
+        keys.forEach(key => {
+            if (key.startsWith(LOCKED_PREFIX)) {
+                const id = key.replace(LOCKED_PREFIX, '');
+                statusMap[id] = 'COMPLETED';
+            } else if (key.startsWith(AUTOSAVE_PREFIX)) {
+                const id = key.replace(AUTOSAVE_PREFIX, '');
+                // Only mark as started if not already completed
+                if (statusMap[id] !== 'COMPLETED') {
+                    statusMap[id] = 'STARTED';
+                }
+            }
+        });
+        return statusMap;
+    } catch (e) {
+        return {};
+    }
+};
+
