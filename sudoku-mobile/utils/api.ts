@@ -28,8 +28,8 @@ export const api = {
   },
 
   // Save a generated puzzle so others can play it
-  savePuzzle: async (id: string, initialGrid: number[][], solvedGrid: number[][], difficulty: string) => {
-    const puzzleData = { id, initialGrid, solvedGrid, difficulty };
+  savePuzzle: async (id: string, initialGrid: number[][], solvedGrid: number[][], difficulty: string, author?: string) => {
+    const puzzleData = { id, initialGrid, solvedGrid, difficulty, author };
     try {
       const response = await fetch(`${API_URL}/api/puzzle`, {
         method: 'POST',
@@ -42,6 +42,18 @@ export const api = {
       console.log("Offline mode: Queuing puzzle for later.");
       await queuePendingPuzzle(puzzleData);
       return { id, offline: true }; // Return fake success
+    }
+  },
+
+  // Get Community Puzzles
+  getCommunityPuzzles: async () => {
+    try {
+        const response = await fetch(`${API_URL}/api/puzzles`);
+        if (!response.ok) throw new Error("Failed to fetch");
+        return await response.json();
+    } catch (e) {
+        console.error("API Error (getCommunityPuzzles):", e);
+        return [];
     }
   },
 

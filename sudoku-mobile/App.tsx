@@ -1,31 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Clipboard from 'expo-clipboard';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  ScrollView, 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
   Alert,
   useColorScheme as useNativeColorScheme,
   useWindowDimensions,
   TextInput,
   Modal,
-  FlatList
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  StyleSheet
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { 
-  Camera, 
-  Trophy, 
-  AlertCircle, 
-  X, 
-  Keyboard, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Moon, 
-  Sun, 
-  PlusCircle, 
-  Sparkles, 
+import { BlurView } from 'expo-blur';
+import {
+  Camera,
+  Trophy,
+  AlertCircle,
+  X,
+  Keyboard,
+  ShieldCheck,
+  ShieldAlert,
+  Moon,
+  Sun,
+  PlusCircle,
+  Sparkles,
   ChevronLeft,
   Save,
   FolderOpen,
@@ -38,22 +44,30 @@ import {
   Cloud,
   CloudOff,
   Copy,
-  ClipboardPaste
+  ClipboardPaste,
+  User,
+  Settings as SettingsIcon,
+  Pause,
+  Play as PlayIcon,
+  Volume2,
+  VolumeX,
+  Languages,
+  Image as ImageIcon
 } from 'lucide-react-native';
 import { GameState, Difficulty } from './types';
-import { 
-  initializeGrid, 
-  isGameWon, 
-  getNumberCounts, 
-  checkIsValid, 
-  getConflicts, 
-  solveSudoku, 
-  hasInitialConflicts, 
-  createEmptyGrid, 
+import {
+  initializeGrid,
+  isGameWon,
+  getNumberCounts,
+  checkIsValid,
+  getConflicts,
+  solveSudoku,
+  hasInitialConflicts,
+  createEmptyGrid,
   generateSudoku,
   checkCompletion
 } from './utils/sudokuLogic';
-import { saveGame, getSavedGames, deleteSavedGame, SavedGame } from './utils/storage';
+import { saveGame, getSavedGames, deleteSavedGame, SavedGame, autoSaveGame, getAutoSave, lockPuzzle, isPuzzleLocked } from './utils/storage';
 import { LanguageProvider, useLanguage } from './utils/i18n';
 import { api } from './utils/api';
 import { GridCell } from './components/GridCell';
@@ -63,10 +77,10 @@ import { SavedGamesList } from './components/SavedGamesList';
 import { CameraScanner } from './components/CameraScanner';
 import { RewardOverlay } from './components/RewardOverlay';
 import clsx from 'clsx';
-import "./global.css"
-import { useColorScheme } from "nativewind"; 
+import "./global.css";
+import { useColorScheme } from "nativewind";
 
-type AppPhase = 'HOME' | 'DIFFICULTY_SELECT' | 'SETUP' | 'PLAYING' | 'LOAD_GAME' | 'SCANNING';
+type AppPhase = 'HOME' | 'PLAY_MENU' | 'CREATE_MENU' | 'DIFFICULTY_SELECT' | 'SETUP' | 'PLAYING' | 'LOAD_GAME' | 'SCANNING' | 'COMMUNITY' | 'RANKINGS';
 
 const AppContent = () => {
   const { colorScheme, toggleColorScheme } = useColorScheme();
@@ -74,7 +88,6 @@ const AppContent = () => {
   const isDarkMode = colorScheme === 'dark';
 
   // Calculate Cell Size
-  // Screen Width - Container Padding (px-4 = 32) - Board Padding (p-1 = 8) - Gaps (10 * 2 = 20) - Spacers (2 * 4 = 8)
   const totalDeductions = 32 + 8 + 20 + 8;
   const cellSize = Math.floor((width - totalDeductions) / 9);
 
@@ -84,17 +97,26 @@ const AppContent = () => {
   const [loadingMessage, setLoadingMessage] = useState("Analyzing grid...");
   const [error, setError] = useState<string | null>(null);
   
-  // Backend State
-  const [playerName, setPlayerName] = useState("Family Player");
+  // New UI/UX State
+  const [isPaused, setIsPaused] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [areAnimationsEnabled, setAreAnimationsEnabled] = useState(true);
+
+  // Backend & User State
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [tempName, setTempName] = useState("");
+
   const [joinGameId, setJoinGameId] = useState("");
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [communityPuzzles, setCommunityPuzzles] = useState<any[]>([]);
   
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
   const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
   const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
-  const [areAnimationsEnabled, setAreAnimationsEnabled] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
   // Rewards State
@@ -104,7 +126,36 @@ const AppContent = () => {
 
   const { t, language, setLanguage } = useLanguage();
   const toggleLanguage = () => setLanguage(language === 'en' ? 'es' : 'en');
-  const toggleAnimations = () => setAreAnimationsEnabled(prev => !prev);
+
+  // --- INITIAL LOAD & ONBOARDING ---
+  useEffect(() => {
+    const loadUser = async () => {
+        const name = await AsyncStorage.getItem('sudoku_username');
+        const sound = await AsyncStorage.getItem('settings_sound');
+        const anim = await AsyncStorage.getItem('settings_anim');
+        
+        if (name) setCurrentUser(name);
+        else setShowOnboarding(true);
+        
+        if (sound !== null) setIsSoundEnabled(sound === 'true');
+        if (anim !== null) setAreAnimationsEnabled(anim === 'true');
+    };
+    loadUser();
+  }, []);
+
+  const handleSaveUser = async () => {
+      if(tempName.trim().length > 0) {
+          await AsyncStorage.setItem('sudoku_username', tempName.trim());
+          setCurrentUser(tempName.trim());
+          setShowOnboarding(false);
+      } else {
+          Alert.alert("Name Required", "Please enter a name to play.");
+      }
+  };
+
+  const persistSettings = async (key: string, val: boolean) => {
+      await AsyncStorage.setItem(key, val.toString());
+  };
 
   // --- ONLINE CHECK & SYNC LOOP ---
   useEffect(() => {
@@ -116,27 +167,37 @@ const AppContent = () => {
         }
     };
     
-    checkConnection(); // Initial check
-    const interval = setInterval(checkConnection, 10000); // Check every 10s
+    checkConnection(); 
+    const interval = setInterval(checkConnection, 10000); 
     return () => clearInterval(interval);
   }, []);
-  // --------------------------------
 
   useEffect(() => {
     let interval: any;
-    if (phase === 'PLAYING' && gameState && !gameState.isGameOver && !gameState.isWon) {
+    if (phase === 'PLAYING' && gameState && !gameState.isGameOver && !gameState.isWon && !isPaused && !showSettings) {
       interval = setInterval(() => {
-        setGameState(prev => prev ? ({ ...prev, timer: prev.timer + 1 }) : null);
+        setGameState(prev => {
+            if(!prev) return null;
+            return { ...prev, timer: prev.timer + 1 };
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [phase, gameState?.isGameOver, gameState?.isWon]);
+  }, [phase, gameState?.isGameOver, gameState?.isWon, isPaused, showSettings]);
 
   useEffect(() => {
     if (phase === 'LOAD_GAME') {
       loadSavedGamesList();
     }
+    if (phase === 'COMMUNITY') {
+        fetchCommunityPuzzles();
+    }
   }, [phase]);
+
+  const fetchCommunityPuzzles = async () => {
+      const list = await api.getCommunityPuzzles();
+      setCommunityPuzzles(list);
+  };
 
   const loadSavedGamesList = async () => {
     const games = await getSavedGames();
@@ -173,13 +234,9 @@ const AppContent = () => {
       try {
         const { initialGrid, solvedGrid } = generateSudoku(difficulty);
         const grid = initializeGrid(initialGrid);
-        
-        // Generate Unique ID & Upload
         const uniqueId = `${difficulty}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
-        // Fire and forget upload (don't block UI)
-        api.savePuzzle(uniqueId, initialGrid, solvedGrid, difficulty).then(res => {
-            if(res) console.log("Puzzle uploaded:", res.id);
-        });
+        
+        api.savePuzzle(uniqueId, initialGrid, solvedGrid, difficulty, currentUser || "Anonymous");
 
         setGameState({
           grid,
@@ -206,12 +263,31 @@ const AppContent = () => {
     }, 100);
   };
 
-  const handleJoinGame = async () => {
-    if (!joinGameId.trim()) return;
+  const handleJoinGame = async (idToJoin?: string) => {
+    const id = idToJoin || joinGameId.trim();
+    if (!id) return;
+    
+    const locked = await isPuzzleLocked(id);
+    if (locked) {
+        setIsScanning(true);
+        setLoadingMessage("Fetching Stats...");
+        await fetchLeaderboard(id);
+        setIsScanning(false);
+        return;
+    }
+
+    const progress = await getAutoSave(id);
+    if (progress) {
+        setGameState(progress);
+        setPhase('PLAYING');
+        setShowJoinModal(false);
+        return;
+    }
+
     setIsScanning(true);
     setLoadingMessage("Fetching Puzzle...");
     try {
-        const puzzle = await api.getPuzzle(joinGameId.trim());
+        const puzzle = await api.getPuzzle(id);
         if (!puzzle) {
             Alert.alert("Error", "Puzzle ID not found.");
             setIsScanning(false);
@@ -247,12 +323,12 @@ const AppContent = () => {
     if (!gameState || !gameState.puzzleId) return;
     await api.submitScore({
         puzzleId: gameState.puzzleId,
-        playerName: playerName || "Anonymous",
+        playerName: currentUser || "Anonymous",
         timeSeconds: gameState.timer,
         mistakes: gameState.mistakes
     });
     Alert.alert("Success", "Score submitted to leaderboard!");
-    fetchLeaderboard(gameState.puzzleId); // Refresh local view if shown
+    fetchLeaderboard(gameState.puzzleId); 
   };
 
   const fetchLeaderboard = async (puzzleId?: string) => {
@@ -268,7 +344,8 @@ const AppContent = () => {
   const handleScanComplete = (detectedGrid: number[][]) => {
     const grid = initializeGrid(detectedGrid);
     const solution = solveSudoku(detectedGrid);
-    
+    const scannedId = `SCANNED-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
+
     if (!solution) {
         setGameState({
             grid,
@@ -284,8 +361,10 @@ const AppContent = () => {
             settings: { autoCheck: true }
         });
         setPhase('SETUP');
-        Alert.alert("Scan Results", "The puzzle was scanned but seems to have errors. Please correct the highlighted numbers in Edit Mode.");
+        Alert.alert("Scan Results", "The puzzle was scanned but seems to have errors or is unsolvable. Please correct it in Edit Mode.");
     } else {
+        api.savePuzzle(scannedId, detectedGrid, solution, "SCANNED", currentUser || "Anonymous");
+
         setGameState({
             grid,
             solvedGrid: solution,
@@ -297,9 +376,12 @@ const AppContent = () => {
             isNoteMode: false,
             timer: 0,
             history: [JSON.parse(JSON.stringify(grid))],
-            settings: { autoCheck: true }
+            settings: { autoCheck: true },
+            puzzleId: scannedId 
         });
+        
         setPhase('PLAYING');
+        Alert.alert("Puzzle Ready!", "ID: " + scannedId + "\nShare this ID with your family to play the same board.");
     }
   };
 
@@ -311,7 +393,6 @@ const AppContent = () => {
       return;
     }
     
-    // Solve it locally to ensure it's valid and to get the solution
     let solution = solveSudoku(numericGrid);
     if (!solution) {
       setError(t('unsolvable'));
@@ -322,14 +403,9 @@ const AppContent = () => {
     setIsScanning(true);
 
     try {
-        // Generate a Custom ID
         const customId = `CUSTOM-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
-        
-        // Prepare data for upload
         const initialGridValues = gameState.grid.map(row => row.map(cell => cell.value || 0));
-        
-        // Upload to Cloud
-        await api.savePuzzle(customId, initialGridValues, solution, "CUSTOM");
+        await api.savePuzzle(customId, initialGridValues, solution, "CUSTOM", currentUser || "Anonymous");
 
         setGameState(prev => {
           if (!prev) return null;
@@ -343,7 +419,7 @@ const AppContent = () => {
             grid: finalGrid,
             solvedGrid: solution!,
             history: [JSON.parse(JSON.stringify(finalGrid))],
-            puzzleId: customId // Assign the new Cloud ID
+            puzzleId: customId 
           };
         });
         
@@ -353,7 +429,6 @@ const AppContent = () => {
 
     } catch (e) {
         Alert.alert("Error", "Could not upload puzzle. You can play locally but cannot share it.");
-        // Fallback to local play if upload fails
         setGameState(prev => {
             if (!prev) return null;
             const finalGrid = prev.grid.map(row => row.map(cell => ({
@@ -366,7 +441,7 @@ const AppContent = () => {
               grid: finalGrid,
               solvedGrid: solution!,
               history: [JSON.parse(JSON.stringify(finalGrid))],
-              puzzleId: undefined // No ID means local only
+              puzzleId: undefined 
             };
         });
         setPhase('PLAYING');
@@ -435,7 +510,7 @@ const AppContent = () => {
   
   const handleNumberInput = (num: number) => {
     setGameState(prev => {
-      if (!prev || !prev.selectedCell || prev.isGameOver || prev.isWon) return prev;
+      if (!prev || !prev.selectedCell || prev.isGameOver || prev.isWon || isPaused) return prev;
       const [r, c] = prev.selectedCell;
       const cell = prev.grid[r][c];
       
@@ -482,12 +557,7 @@ const AppContent = () => {
         if (isCorrect && !gameOver && !won) {
             const completions = checkCompletion(newGrid, r, c, prev.solvedGrid);
             if (completions.length > 0) {
-                // Calculate Cell Position
-                // Padding Left (16) + Grid Pad (4) + Cols * (Size + Gap) + Spacers
                 const x = 16 + 4 + (c * cellSize) + (c * 2) + (Math.floor(c/3) * 4) + (cellSize/2);
-                
-                // For Y, we need the Grid's PageY. 
-                // We'll calculate relative Y then add gridPageY.
                 const relY = 4 + (r * cellSize) + (r * 2) + (Math.floor(r/3) * 4) + (cellSize/2);
                 const y = gridPageY + relY;
 
@@ -502,7 +572,7 @@ const AppContent = () => {
         }
         // --------------------
 
-        return {
+        const newState = {
           ...prev,
           grid: newGrid,
           mistakes,
@@ -510,13 +580,20 @@ const AppContent = () => {
           isWon: won,
           history: [...prev.history, JSON.parse(JSON.stringify(newGrid))]
         };
+
+        if (prev.puzzleId) {
+            autoSaveGame(prev.puzzleId, newState);
+            if (gameOver || won) lockPuzzle(prev.puzzleId);
+        }
+
+        return newState;
       }
     });
   };
 
   const handleErase = () => {
     setGameState(prev => {
-      if (!prev || !prev.selectedCell || prev.isGameOver || prev.isWon) return prev;
+      if (!prev || !prev.selectedCell || prev.isGameOver || prev.isWon || isPaused) return prev;
       const [r, c] = prev.selectedCell;
       if (phase === 'PLAYING' && prev.grid[r][c].isInitial) return prev;
       
@@ -525,13 +602,17 @@ const AppContent = () => {
       newGrid[r][c].notes = [];
       newGrid[r][c].isValid = true;
       if (phase === 'SETUP') newGrid[r][c].isInitial = false;
-      return { ...prev, grid: newGrid };
+      
+      const newState = { ...prev, grid: newGrid };
+      if (prev.puzzleId && phase === 'PLAYING') autoSaveGame(prev.puzzleId, newState);
+      
+      return newState;
     });
   };
 
   const handleUndo = () => {
     setGameState(prev => {
-      if (!prev || prev.history.length <= 1) return prev;
+      if (!prev || prev.history.length <= 1 || isPaused) return prev;
       const newHistory = [...prev.history];
       newHistory.pop();
       const lastState = newHistory[newHistory.length - 1];
@@ -540,7 +621,7 @@ const AppContent = () => {
   };
 
   const handleHint = () => {
-    if (phase === 'SETUP') return;
+    if (phase === 'SETUP' || isPaused) return;
     setGameState(prev => {
       if (!prev || !prev.selectedCell || prev.isGameOver || prev.isWon) return prev;
       const [r, c] = prev.selectedCell;
@@ -559,6 +640,7 @@ const AppContent = () => {
   };
 
   const handleCellClick = (r: number, c: number) => {
+    if(isPaused) return;
     setGameState(prev => {
       if (!prev) return null;
       return { ...prev, selectedCell: [r, c] };
@@ -578,9 +660,8 @@ const AppContent = () => {
   let gridOpacityClass = 'opacity-100';
   
   if (isGameFinished) {
-    if (gameState?.isWon) {
-        gridBorderClass = 'border-emerald-500';
-    } else {
+    if (gameState?.isWon) gridBorderClass = 'border-emerald-500';
+    else {
         gridBorderClass = 'border-red-500';
         gridOpacityClass = 'opacity-60 grayscale';
     }
@@ -597,45 +678,34 @@ const AppContent = () => {
     }
   };
 
+  const NavHeader = ({ title, onBack }: { title: string, onBack: () => void }) => (
+    <View className={clsx("flex-row items-center justify-between px-4 py-4 border-b mb-4", isDarkMode ? "border-zinc-800" : "border-slate-100")}>
+        <TouchableOpacity onPress={onBack} className="p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
+            <ChevronLeft size={20} color={isDarkMode ? "white" : "black"} />
+        </TouchableOpacity>
+        <Text className={clsx("text-xl font-black", textClass)}>{title}</Text>
+        <View className="w-10" />
+    </View>
+  );
+
   return (
     <SafeAreaView className={clsx("flex-1", containerClass)} edges={['top', 'left', 'right', 'bottom']}>
         <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         <View className={clsx("flex-1", containerClass)}>
           
           <View className={clsx("flex-row items-center justify-between px-4 py-2 border-b", isDarkMode ? "border-zinc-800" : "border-slate-100")}>
-            <Text className={clsx("text-xl font-black tracking-tight", textClass)}>
-              {t('appTitle')}
-            </Text>
+            <View className="flex-row items-center gap-2">
+                <View className={clsx("w-2 h-2 rounded-full", isOnline ? "bg-emerald-500" : "bg-red-500")} />
+                <Text className={clsx("text-xs font-black tracking-tight", textClass)}>
+                {t('appTitle')}
+                </Text>
+            </View>
             <View className="flex-row gap-2">
-              {phase === 'PLAYING' && !isGameFinished && (
-                <>
-                    <TouchableOpacity onPress={() => fetchLeaderboard(gameState?.puzzleId)} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                        <Trophy size={18} color="#f59e0b" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleOpenSaveModal} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                       <Save size={18} color="#3b82f6" />
-                    </TouchableOpacity>
-                </>
-              )}
-              <TouchableOpacity onPress={toggleLanguage} className={clsx("p-2 rounded-xl border shadow-sm flex-row items-center gap-1 px-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                <Text className="text-[10px] font-black text-slate-500">{language.toUpperCase()}</Text>
+              <TouchableOpacity onPress={() => setShowSettings(true)} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
+                <SettingsIcon size={18} color={isDarkMode ? "#94a3b8" : "#64748b"} />
               </TouchableOpacity>
               
-              <View className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                {isOnline ? (
-                    <Cloud size={18} color="#10b981" />
-                ) : (
-                    <CloudOff size={18} color="#ef4444" />
-                )}
-              </View>
-
-              <TouchableOpacity onPress={toggleAnimations} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                <Sparkles size={18} color={areAnimationsEnabled ? "#3b82f6" : "#94a3b8"} fill={areAnimationsEnabled ? "#3b82f6" : "none"} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleColorScheme} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
-                {isDarkMode ? <Sun size={18} color="#94a3b8" /> : <Moon size={18} color="#94a3b8" />}
-              </TouchableOpacity>
-              {phase !== 'HOME' && (
+              {phase !== 'HOME' && phase !== 'PLAYING' && (
                 <TouchableOpacity onPress={() => { setGameState(null); setPhase('HOME'); setError(null); }} className={clsx("p-2 rounded-xl border shadow-sm", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}>
                   <X size={18} color="#94a3b8" />
                 </TouchableOpacity>
@@ -645,64 +715,179 @@ const AppContent = () => {
 
           <View className="flex-1">
             {phase === 'HOME' ? (
-               <View className="flex-1 items-center justify-center p-6 space-y-6">
-                 <View className={clsx("w-full rounded-[2.5rem] p-6 shadow-xl border items-center space-y-6", cardClass)}>
-                   <View className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-3xl items-center justify-center">
-                     <Camera size={40} color={isDarkMode ? "#60a5fa" : "#2563eb"} strokeWidth={2.5} />
-                   </View>
-                   <View className="items-center">
-                      <Text className={clsx("text-xl font-black", textClass)}>{t('ready')}</Text>
-                      <Text className="text-slate-500 text-xs font-medium">{t('subtitle')}</Text>
+               <View className="flex-1 items-center justify-center p-6">
+                 <View className={clsx("w-full rounded-[2.5rem] p-8 shadow-2xl border items-center space-y-8", cardClass)}>
+                   <View className="w-24 h-24 bg-blue-600 rounded-[2rem] items-center justify-center shadow-xl shadow-blue-500/30">
+                     <PlusCircle size={48} color="white" strokeWidth={2.5} />
                    </View>
                    
-                   <View className="w-full gap-3">
-                     <TouchableOpacity onPress={() => setPhase('DIFFICULTY_SELECT')} className="w-full py-4 bg-blue-600 dark:bg-blue-700 rounded-2xl flex-row items-center justify-center gap-2">
-                       <PlusCircle size={18} color="white" />
-                       <Text className="text-white font-black text-base">{t('createNew')}</Text>
+                   <View className="items-center">
+                      <Text className={clsx("text-3xl font-black", textClass)}>{t('ready')}</Text>
+                      <Text className="text-slate-500 text-sm font-medium mt-1">{currentUser ? `Hi, ${currentUser}!` : t('subtitle')}</Text>
+                   </View>
+                   
+                   <View className="w-full gap-4">
+                     <TouchableOpacity 
+                        onPress={() => setPhase('PLAY_MENU')} 
+                        className="w-full py-5 bg-blue-600 active:bg-blue-500 rounded-[1.5rem] flex-row items-center justify-center gap-3 shadow-lg shadow-blue-900/40"
+                     >
+                       <PlayIcon size={24} color="white" fill="white" />
+                       <Text className="text-white font-black text-xl">Comenzar Partida</Text>
                      </TouchableOpacity>
 
-                     <View className="flex-row gap-3">
-                       <TouchableOpacity onPress={() => setShowJoinModal(true)} className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}>
-                          <DownloadCloud size={20} color="#10b981" />
-                          <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>Join Game</Text>
-                       </TouchableOpacity>
-                       
-                       <TouchableOpacity onPress={() => fetchLeaderboard()} className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}>
-                          <Trophy size={20} color="#f59e0b" />
-                          <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>Rankings</Text>
-                       </TouchableOpacity>
-                     </View>
+                     <TouchableOpacity 
+                        onPress={() => setPhase('CREATE_MENU')} 
+                        className={clsx("w-full py-5 border-2 rounded-[1.5rem] flex-row items-center justify-center gap-3", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-200")}
+                     >
+                       <PlusCircle size={24} color={isDarkMode ? "white" : "#2563eb"} />
+                       <Text className={clsx("font-black text-xl", textClass)}>Crear Sudoku</Text>
+                     </TouchableOpacity>
 
-                     <View className="flex-row items-center gap-3">
-                       <View className={clsx("flex-1 h-px", isDarkMode ? "bg-zinc-800" : "bg-slate-100")} />
-                       <Text className="text-[9px] font-black uppercase text-slate-300 tracking-widest">{t('tools')}</Text>
-                       <View className={clsx("flex-1 h-px", isDarkMode ? "bg-zinc-800" : "bg-slate-100")} />
-                     </View>
-
-                     <View className="flex-row gap-3">
-                        <TouchableOpacity onPress={() => setPhase('LOAD_GAME')} className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}>
-                          <FolderOpen size={20} color="#eab308" />
-                          <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>{t('loadGame')}</Text>
+                     <View className="flex-row gap-4 mt-2">
+                        <TouchableOpacity 
+                            onPress={() => setPhase('RANKINGS')}
+                            className={clsx("flex-1 py-4 rounded-2xl items-center justify-center gap-1", isDarkMode ? "bg-zinc-800/50" : "bg-slate-100")}
+                        >
+                            <Trophy size={20} color="#f59e0b" />
+                            <Text className={clsx("text-[10px] font-black uppercase", textClass)}>Rankings</Text>
                         </TouchableOpacity>
-
-                       <TouchableOpacity 
-                        onPress={handleOpenScanner} 
-                        className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}
-                       >
-                          <Camera size={20} className="text-blue-500" color="#3b82f6" />
-                          <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>{t('scanImage')}</Text>
-                       </TouchableOpacity>
-                       
-                       <TouchableOpacity onPress={startManualSetup} className={clsx("flex-1 py-4 border-2 rounded-2xl items-center gap-1", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-100")}>
-                          <Keyboard size={20} color="#94a3b8" />
-                          <Text className={clsx("text-[10px] uppercase font-bold", textClass)}>{t('manual')}</Text>
-                       </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            onPress={() => setPhase('LOAD_GAME')}
+                            className={clsx("flex-1 py-4 rounded-2xl items-center justify-center gap-1", isDarkMode ? "bg-zinc-800/50" : "bg-slate-100")}
+                        >
+                            <FolderOpen size={20} color="#eab308" />
+                            <Text className={clsx("text-[10px] font-black uppercase", textClass)}>My Saves</Text>
+                        </TouchableOpacity>
                      </View>
                    </View>
                  </View>
                </View>
+            ) : phase === 'PLAY_MENU' ? (
+                <View className="flex-1 p-6">
+                    <NavHeader title="Jugar" onBack={() => setPhase('HOME')} />
+                    <View className="gap-4">
+                        <TouchableOpacity 
+                            onPress={() => setPhase('DIFFICULTY_SELECT')}
+                            className={clsx("p-6 rounded-3xl border flex-row items-center gap-4", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
+                        >
+                            <View className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl items-center justify-center">
+                                <Sparkles size={24} color="#3b82f6" />
+                            </View>
+                            <View>
+                                <Text className={clsx("text-lg font-black", textClass)}>Partida Aleatoria</Text>
+                                <Text className="text-xs text-slate-500">Genera un reto nuevo al instante</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={() => setPhase('COMMUNITY')}
+                            className={clsx("p-6 rounded-3xl border flex-row items-center gap-4", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
+                        >
+                            <View className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl items-center justify-center">
+                                <Globe size={24} color="#10b981" />
+                            </View>
+                            <View>
+                                <Text className={clsx("text-lg font-black", textClass)}>Community Sudoku</Text>
+                                <Text className="text-xs text-slate-500">Puzzles creados por la familia</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : phase === 'CREATE_MENU' ? (
+                <View className="flex-1 p-6">
+                    <NavHeader title="Crear" onBack={() => setPhase('HOME')} />
+                    <View className="gap-4">
+                        <TouchableOpacity 
+                            onPress={handleOpenScanner}
+                            className={clsx("p-6 rounded-3xl border flex-row items-center gap-4", isDarkMode ? "bg-blue-600" : "bg-blue-600 shadow-lg")}
+                        >
+                            <View className="w-12 h-12 bg-white/20 rounded-2xl items-center justify-center">
+                                <Camera size={24} color="white" />
+                            </View>
+                            <View>
+                                <Text className="text-lg font-black text-white">Escanear (IA)</Text>
+                                <Text className="text-xs text-blue-100">Usa tu cámara o galería</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            onPress={startManualSetup}
+                            className={clsx("p-6 rounded-3xl border flex-row items-center gap-4", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
+                        >
+                            <View className="w-12 h-12 bg-slate-100 dark:bg-zinc-800 rounded-2xl items-center justify-center">
+                                <Keyboard size={24} color="#64748b" />
+                            </View>
+                            <View>
+                                <Text className={clsx("text-lg font-black", textClass)}>Creación Manual</Text>
+                                <Text className="text-xs text-slate-500">Escribe el puzzle tú mismo</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : phase === 'COMMUNITY' ? (
+                <View className="flex-1 p-6 pt-2">
+                    <NavHeader title="Community" onBack={() => setPhase('PLAY_MENU')} />
+                    {communityPuzzles.length === 0 ? (
+                        <View className="flex-1 items-center justify-center">
+                            <ActivityIndicator size="large" color="#3b82f6" />
+                            <Text className="text-slate-400 mt-4">Buscando puzzles familiares...</Text>
+                        </View>
+                    ) : (
+                        <FlatList 
+                            data={communityPuzzles}
+                            keyExtractor={(item) => item.id}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 40 }}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    onPress={() => handleJoinGame(item.id)}
+                                    className={clsx("p-4 mb-3 rounded-2xl border flex-row items-center justify-between", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
+                                >
+                                    <View className="flex-1">
+                                        <View className="flex-row items-center gap-2 mb-1">
+                                            <Text className={clsx("font-black text-base capitalize", 
+                                                item.difficulty === 'EASY' ? 'text-emerald-500' :
+                                                item.difficulty === 'MEDIUM' ? 'text-blue-500' :
+                                                item.difficulty === 'HARD' ? 'text-amber-500' :
+                                                item.difficulty === 'SCANNED' ? 'text-purple-500' : 'text-rose-500'
+                                            )}>
+                                                {item.difficulty}
+                                            </Text>
+                                            <Text className="text-[10px] text-slate-400 font-mono">
+                                                {new Date(item.createdAt).toLocaleDateString()}
+                                            </Text>
+                                        </View>
+                                        <View className="flex-row items-center gap-1.5">
+                                            <User size={12} color="#94a3b8" />
+                                            <Text className={clsx("text-xs font-bold", textClass)}>
+                                                Por {item.author || "Anónimo"}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <ChevronLeft size={20} color="#3b82f6" style={{ transform: [{ rotate: '180deg' }]}} />
+                                </TouchableOpacity>
+                            )}
+                        />
+                    )}
+                </View>
+            ) : phase === 'RANKINGS' ? (
+                <View className="flex-1 p-6">
+                    <NavHeader title="Rankings" onBack={() => setPhase('HOME')} />
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        <TouchableOpacity onPress={() => fetchLeaderboard()} className="p-6 bg-amber-500 rounded-3xl flex-row items-center gap-4 mb-4">
+                            <Trophy size={32} color="white" />
+                            <View>
+                                <Text className="text-white text-lg font-black">Global Family Ranking</Text>
+                                <Text className="text-amber-100 text-xs">Quién es el mejor en la familia</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <Text className="text-slate-400 font-black uppercase text-[10px] mb-4 mt-2">Próximamente: Ranking por mes</Text>
+                    </ScrollView>
+                </View>
             ) : phase === 'LOAD_GAME' ? (
               <View className="flex-1 p-6">
+                <NavHeader title="Mis Partidas" onBack={() => setPhase('HOME')} />
                 <SavedGamesList 
                   games={savedGames} 
                   onLoad={handleLoadGame} 
@@ -712,71 +897,51 @@ const AppContent = () => {
                 />
               </View>
             ) : phase === 'DIFFICULTY_SELECT' ? (
-             <View className="flex-1 items-center justify-center p-6">
-               <View className={clsx("w-full rounded-[2rem] p-6 shadow-xl border space-y-4", cardClass)}>
-                  <View className="flex-row items-center justify-between mb-2">
-                    <TouchableOpacity onPress={() => setPhase('HOME')}>
-                      <ChevronLeft size={24} color="#94a3b8" />
-                    </TouchableOpacity>
-                    <Text className={clsx("text-lg font-black", textClass)}>{t('difficulty')}</Text>
-                    <View className="w-8" />
-                  </View>
-                  <View className="gap-2">
+             <View className="flex-1 p-6">
+               <NavHeader title="Dificultad" onBack={() => setPhase('PLAY_MENU')} />
+               <View className="gap-3">
                     {(['EASY', 'MEDIUM', 'HARD', 'EXPERT', 'EXTREME'] as Difficulty[]).map((d) => (
-                      <TouchableOpacity key={d} onPress={() => handleDifficultySelect(d)} className={clsx("w-full py-4 px-6 rounded-2xl flex-row items-center justify-between border border-transparent", isDarkMode ? "bg-zinc-800/50" : "bg-slate-50")}>
-                        <Text className={clsx("font-bold capitalize", textClass)}>{getDifficultyLabel(d)}</Text>
-                        <Sparkles size={16} color="#60a5fa" />
+                      <TouchableOpacity key={d} onPress={() => handleDifficultySelect(d)} className={clsx("w-full py-5 px-6 rounded-2xl flex-row items-center justify-between border", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}>
+                        <Text className={clsx("text-lg font-bold capitalize", textClass)}>{getDifficultyLabel(d)}</Text>
+                        <Sparkles size={20} color="#60a5fa" />
                       </TouchableOpacity>
                     ))}
-                  </View>
                </View>
              </View>
             ) : (
               <View className="flex-1 flex-col">
                 {phase === 'PLAYING' && (
-                  <View className={clsx("mx-4 mb-3 p-3 rounded-2xl shadow-sm border flex-col gap-2", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100")}>
-                      {/* Top Row: ID and Toggle */}
-                      <View className="flex-row justify-between items-center border-b border-dashed border-slate-200 dark:border-zinc-800 pb-2 mb-1">
+                  <View className={clsx("mx-4 mt-2 mb-3 p-3 rounded-2xl shadow-sm border flex-row items-center justify-between", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100")}>
+                      <View className="flex-row items-center gap-4">
+                          <TouchableOpacity onPress={() => setIsPaused(true)} className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                             <Pause size={20} color="#3b82f6" fill="#3b82f6" />
+                          </TouchableOpacity>
+                          <View>
+                            <Text className="text-[8px] text-slate-400 font-black uppercase">{t('time')}</Text>
+                            <Text className={clsx("text-lg font-mono font-black", textClass)}>
+                              {Math.floor(gameState!.timer / 60).toString().padStart(2, '0')}:{gameState!.timer % 60).toString().padStart(2, '0')}
+                            </Text>
+                          </View>
+                      </View>
+
+                      <View className="flex-row items-center gap-6">
+                          <View className="items-center">
+                            <Text className="text-[8px] text-slate-400 font-black uppercase">{t('mistakes')}</Text>
+                            <Text className={clsx("text-lg font-black", gameState!.mistakes >= gameState!.maxMistakes ? 'text-red-500' : textClass)}>
+                              {gameState!.mistakes}/{gameState!.maxMistakes}
+                            </Text>
+                          </View>
                           <TouchableOpacity 
                             onPress={async () => {
                                 if(gameState?.puzzleId) {
                                     await Clipboard.setStringAsync(gameState.puzzleId);
-                                    Alert.alert("Copied!", "Puzzle ID copied to clipboard. Share it with family!");
+                                    Alert.alert("Copiado!", "ID del puzzle copiado. ¡Pásalo a la familia!");
                                 }
                             }}
-                            className="flex-row items-center gap-2 active:opacity-50"
+                            className="p-2 bg-slate-50 dark:bg-zinc-800 rounded-xl"
                           >
-                             <Users size={12} color={isDarkMode ? "#94a3b8" : "#64748b"} />
-                             <Text className="text-[10px] font-mono text-slate-500">
-                                {gameState?.puzzleId ? gameState.puzzleId.substring(0, 15) + "..." : "Local Game"}
-                             </Text>
-                             <Copy size={10} color={isDarkMode ? "#94a3b8" : "#64748b"} />
+                             <Share2 size={18} color={isDarkMode ? "#94a3b8" : "#64748b"} />
                           </TouchableOpacity>
-                          <TouchableOpacity 
-                            onPress={() => setGameState(p => p ? ({ ...p, settings: { ...p.settings, autoCheck: !p.settings.autoCheck } }) : null)} 
-                            className="flex-row items-center gap-1"
-                          >
-                            <Text className={clsx("text-[8px] font-black uppercase", gameState!.settings.autoCheck ? "text-blue-500" : "text-slate-400")}>
-                              {t('assist')} {gameState!.settings.autoCheck ? 'ON' : 'OFF'}
-                            </Text>
-                          </TouchableOpacity>
-                      </View>
-
-                      {/* Bottom Row: Stats */}
-                      <View className="flex-row justify-between items-center">
-                          <View className="flex-col">
-                            <Text className="text-[8px] text-slate-400 font-black uppercase">{t('mistakes')}</Text>
-                            <Text className={clsx("text-base font-black", gameState!.mistakes >= gameState!.maxMistakes ? 'text-red-500' : textClass)}>
-                              {gameState!.mistakes}/{gameState!.maxMistakes}
-                            </Text>
-                          </View>
-                          <View className="flex-col items-center">
-                            <Text className="text-[8px] text-slate-400 font-black uppercase">{t('time')}</Text>
-                            <Text className={clsx("text-base font-mono font-black", textClass)}>
-                              {Math.floor(gameState!.timer / 60).toString().padStart(2, '0')}:{(gameState!.timer % 60).toString().padStart(2, '0')}
-                            </Text>
-                          </View>
-                          <View className="w-8" /> {/* Spacer for balance */}
                       </View>
                   </View>
                 )}
@@ -800,7 +965,7 @@ const AppContent = () => {
                   </View>
                 )}
 
-                <View className="items-center justify-center flex-1 px-4">
+                <View className="items-center justify-center flex-1 px-4 relative">
                     <View 
                         ref={gridRef}
                         onLayout={() => {
@@ -821,7 +986,7 @@ const AppContent = () => {
                                         row={r} 
                                         col={c} 
                                         isSelected={!isGameFinished && gameState!.selectedCell?.[0] === r && gameState!.selectedCell?.[1] === c} 
-                                        isHighlighted={!isGameFinished && gameState!.selectedCell && (gameState!.selectedCell[0] === r || gameState!.selectedCell[1] === c || (Math.floor(r / 3) === Math.floor(gameState!.selectedCell[0] / 3) && Math.floor(c / 3) === Math.floor(gameState!.selectedCell[1] / 3)))} 
+                                        isHighlighted={!isGameFinished && gameState!.selectedCell && (gameState!.selectedCell[0] === r || gameState!.selectedCell[1] === c || (Math.floor(r / 3) === Math.floor(gameState!.selectedCell[0] / 3) && Math.floor(c / 3) === Math.floor(gameState!.selectedCell[1] / 3)))}
                                         isSameNumber={!isGameFinished && gameState!.selectedCell && gameState!.grid[gameState!.selectedCell[0]][gameState!.selectedCell[1]].value === cell.value && cell.value !== null} 
                                         isConflict={gameState!.settings.autoCheck && cell.value !== null && getConflicts(gameState!.grid, r, c)} 
                                         onClick={() => handleCellClick(r, c)}
@@ -838,6 +1003,20 @@ const AppContent = () => {
                         ))}
                       </View>
                     </View>
+
+                    {/* PAUSE OVERLAY */} 
+                    {isPaused && (
+                        <View style={{position:'absolute', top:0, left:0, right:0, bottom:0}} className="rounded-2xl overflow-hidden items-center justify-center z-50">
+                            <BlurView intensity={20} tint={isDarkMode ? 'dark' : 'light'} style={{position:'absolute', top:0, left:0, right:0, bottom:0}} />
+                            <TouchableOpacity 
+                                onPress={() => setIsPaused(false)}
+                                className="bg-blue-600 w-20 h-20 rounded-full items-center justify-center shadow-2xl shadow-blue-900"
+                            >
+                                <PlayIcon size={32} color="white" fill="white" />
+                            </TouchableOpacity>
+                            <Text className={clsx("mt-4 text-xl font-black", textClass)}>PAUSA</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View className="mt-4">
@@ -859,34 +1038,19 @@ const AppContent = () => {
                            <View className="bg-slate-50 dark:bg-zinc-800 p-3 rounded-xl mb-4">
                               <Text className={clsx("text-[10px] font-bold uppercase mb-2", isDarkMode ? "text-slate-400" : "text-slate-500")}>Submit Score</Text>
                               <View className="flex-row gap-2">
-                                <TextInput 
-                                    className={clsx("flex-1 px-3 py-2 rounded-lg text-sm font-bold border", isDarkMode ? "bg-zinc-900 border-zinc-700 text-white" : "bg-white border-slate-200 text-slate-900")}
-                                    placeholder="Enter Name"
-                                    placeholderTextColor={isDarkMode ? "#52525b" : "#cbd5e1"}
-                                    value={playerName}
-                                    onChangeText={setPlayerName}
-                                />
+                                <View className={clsx("flex-1 px-3 py-2 rounded-lg border flex-row items-center gap-2", isDarkMode ? "bg-zinc-900 border-zinc-700" : "bg-white border-slate-200")}>
+                                    <User size={14} color="#94a3b8" />
+                                    <Text className={clsx("text-sm font-bold", textClass)}>{currentUser || "Anonymous"}</Text>
+                                </View>
                                 <TouchableOpacity onPress={handleSubmitScore} className="bg-blue-600 px-4 justify-center rounded-lg">
                                     <Share2 size={16} color="white" />
                                 </TouchableOpacity>
                               </View>
-                              <Text className="text-[9px] text-slate-400 mt-1">ID: {gameState!.puzzleId}</Text>
+                              <Text className="text-[9px] text-slate-400 mt-1">Puzzle: {gameState!.puzzleId.substring(0, 20)}...</Text>
                            </View>
                         )}
 
                         <View className="flex-row gap-2 justify-end">
-                              {!gameState!.isWon && (
-                                <TouchableOpacity onPress={handleRetry} className={clsx("px-3 py-3 rounded-xl items-center justify-center", isDarkMode ? "bg-blue-900/30" : "bg-blue-100")}>
-                                  <RotateCcw size={18} color="#2563eb" />
-                                </TouchableOpacity>
-                              )}
-                              
-                              {currentSaveId && gameState?.isWon && (
-                                  <TouchableOpacity onPress={handleDeleteCurrentAndHome} className={clsx("px-3 py-3 rounded-xl items-center justify-center", isDarkMode ? "bg-red-900/30" : "bg-red-100")}>
-                                    <Trash2 size={18} color="#ef4444" />
-                                  </TouchableOpacity>
-                              )}
-                              
                               <TouchableOpacity onPress={() => { setGameState(null); setPhase('HOME'); }} className={clsx("px-5 py-3 rounded-xl justify-center", isDarkMode ? "bg-zinc-100" : "bg-slate-900")}>
                                   <Text className={clsx("font-black text-xs", isDarkMode ? "text-zinc-950" : "text-white")}>{t('home')}</Text>
                               </TouchableOpacity>
@@ -911,6 +1075,86 @@ const AppContent = () => {
         </View>
 
         {/* --- MODALS --- */}
+
+        {/* SETTINGS MODAL */} 
+        <Modal visible={showSettings} animationType="slide" transparent>
+            <View className="flex-1 bg-black/60 justify-end">
+                <View className={clsx("w-full h-[80%] rounded-t-[3rem] p-8", isDarkMode ? "bg-zinc-900" : "bg-white")}>
+                    <View className="flex-row items-center justify-between mb-8">
+                        <Text className={clsx("text-3xl font-black", textClass)}>Settings</Text>
+                        <TouchableOpacity onPress={() => setShowSettings(false)} className="p-2 bg-slate-100 dark:bg-zinc-800 rounded-full">
+                            <X size={24} color={isDarkMode ? "white" : "black"} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView showsVerticalScrollIndicator={false} className="space-y-6">
+                        {/* Appearance */} 
+                        <View className="mb-6">
+                            <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Appearance</Text>
+                            <TouchableOpacity onPress={toggleColorScheme} className={clsx("flex-row items-center justify-between p-5 rounded-2xl", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    {isDarkMode ? <Moon size={20} color="#60a5fa" /> : <Sun size={20} color="#f59e0b" />}
+                                    <Text className={clsx("font-bold text-base", textClass)}>Dark Mode</Text>
+                                </View>
+                                <View className={clsx("w-12 h-6 rounded-full p-1", isDarkMode ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
+                                    <View className="w-4 h-4 bg-white rounded-full" />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Game Audio */} 
+                        <View className="mb-6">
+                            <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Audio & Effects</Text>
+                            <TouchableOpacity onPress={() => { setIsSoundEnabled(!isSoundEnabled); persistSettings('settings_sound', !isSoundEnabled); }} className={clsx("flex-row items-center justify-between p-5 rounded-2xl mb-2", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    {isSoundEnabled ? <Volume2 size={20} color="#3b82f6" /> : <VolumeX size={20} color="#ef4444" />}
+                                    <Text className={clsx("font-bold text-base", textClass)}>Sound Effects</Text>
+                                </View>
+                                <View className={clsx("w-12 h-6 rounded-full p-1", isSoundEnabled ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
+                                    <View className="w-4 h-4 bg-white rounded-full" />
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => { setAreAnimationsEnabled(!areAnimationsEnabled); persistSettings('settings_anim', !areAnimationsEnabled); }} className={clsx("flex-row items-center justify-between p-5 rounded-2xl", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    <Sparkles size={20} color="#a855f7" />
+                                    <Text className={clsx("font-bold text-base", textClass)}>VFX Animations</Text>
+                                </View>
+                                <View className={clsx("w-12 h-6 rounded-full p-1", areAnimationsEnabled ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
+                                    <View className="w-4 h-4 bg-white rounded-full" />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Language */} 
+                        <View className="mb-6">
+                            <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Language</Text>
+                            <TouchableOpacity onPress={toggleLanguage} className={clsx("flex-row items-center justify-between p-5 rounded-2xl", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    <Languages size={20} color="#10b981" />
+                                    <Text className={clsx("font-bold text-base", textClass)}>{language === 'en' ? 'English' : 'Español'}</Text>
+                                </View>
+                                <Text className="text-blue-500 font-black">CHANGE</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* User */} 
+                        <View className="mb-6">
+                            <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Account</Text>
+                            <View className={clsx("p-5 rounded-2xl flex-row items-center justify-between", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    <User size={20} color="#64748b" />
+                                    <Text className={clsx("font-bold text-base", textClass)}>{currentUser}</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setShowOnboarding(true)}>
+                                    <Text className="text-blue-500 font-bold">Edit</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
         
         <Modal visible={showJoinModal} transparent animationType="fade">
             <View className="flex-1 bg-black/50 items-center justify-center p-6">
@@ -940,7 +1184,7 @@ const AppContent = () => {
                         <TouchableOpacity onPress={() => setShowJoinModal(false)} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-zinc-800 items-center">
                             <Text className={clsx("font-bold", textClass)}>Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleJoinGame} className="flex-1 py-3 rounded-xl bg-blue-600 items-center">
+                        <TouchableOpacity onPress={() => handleJoinGame()} className="flex-1 py-3 rounded-xl bg-blue-600 items-center">
                             <Text className="font-bold text-white">Join</Text>
                         </TouchableOpacity>
                     </View>
@@ -949,7 +1193,7 @@ const AppContent = () => {
         </Modal>
 
         <Modal visible={showLeaderboard} animationType="slide" presentationStyle="pageSheet">
-            <View className={clsx("flex-1 p-6", isDarkMode ? "bg-zinc-950" : "bg-white")}>
+            <View className={clsx("flex-1 p-6 pt-12", isDarkMode ? "bg-zinc-950" : "bg-white")}>
                 <View className="flex-row items-center justify-between mb-6">
                     <Text className={clsx("text-2xl font-black", textClass)}>Leaderboard</Text>
                     <TouchableOpacity onPress={() => setShowLeaderboard(false)} className="p-2 bg-slate-100 dark:bg-zinc-800 rounded-full">
@@ -963,7 +1207,8 @@ const AppContent = () => {
                         data={leaderboard}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={({ item, index }) => (
-                            <View className={clsx("flex-row items-center justify-between p-4 mb-2 rounded-xl border", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-slate-50 border-slate-100")}>
+                            <View className={clsx("flex-row items-center justify-between p-4 mb-2 rounded-xl border", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-50 shadow-sm")}
+                            >
                                 <View className="flex-row items-center gap-3">
                                     <Text className="font-black text-slate-400 w-6">#{index + 1}</Text>
                                     <View>
@@ -982,6 +1227,38 @@ const AppContent = () => {
                     />
                 )}
             </View>
+        </Modal>
+
+        <Modal visible={showOnboarding} animationType="fade" transparent={false}>
+            <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center p-8">
+                <View className="items-center mb-10">
+                    <View className="w-24 h-24 bg-blue-600 rounded-3xl items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
+                        <User size={48} color="white" />
+                    </View>
+                    <Text className="text-3xl font-black text-white text-center mb-2">Welcome!</Text>
+                    <Text className="text-slate-400 text-center text-lg">What should we call you?</Text>
+                </View>
+
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="w-full">
+                    <TextInput 
+                        className="w-full bg-slate-800 border border-slate-700 p-5 rounded-2xl text-white text-xl font-bold text-center mb-6"
+                        placeholder="Your Name"
+                        placeholderTextColor="#64748b"
+                        value={tempName}
+                        onChangeText={setTempName}
+                        autoFocus
+                    />
+                    <TouchableOpacity 
+                        onPress={handleSaveUser}
+                        className={clsx("w-full py-5 rounded-2xl items-center shadow-lg", tempName.trim().length > 0 ? "bg-blue-600" : "bg-slate-700")}
+                        disabled={tempName.trim().length === 0}
+                    >
+                        <Text className={clsx("font-black text-lg", tempName.trim().length > 0 ? "text-white" : "text-slate-500")}>
+                            Let's Play!
+                        </Text>
+                    </TouchableOpacity>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
         </Modal>
 
         <SaveModal 

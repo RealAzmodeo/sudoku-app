@@ -10,6 +10,35 @@ export interface SavedGame {
 }
 
 const SAVES_KEY = '@sudoku_lens_saves_v1';
+const AUTOSAVE_PREFIX = '@sudoku_autosave_';
+const LOCKED_PREFIX = '@sudoku_locked_';
+
+export const autoSaveGame = async (puzzleId: string, gameState: GameState) => {
+  if (!puzzleId) return;
+  try {
+    await AsyncStorage.setItem(`${AUTOSAVE_PREFIX}${puzzleId}`, JSON.stringify(gameState));
+  } catch (e) {
+    console.error("Auto-save failed", e);
+  }
+};
+
+export const getAutoSave = async (puzzleId: string): Promise<GameState | null> => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(`${AUTOSAVE_PREFIX}${puzzleId}`);
+    return jsonValue != null ? JSON.parse(jsonValue) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const lockPuzzle = async (puzzleId: string) => {
+    await AsyncStorage.setItem(`${LOCKED_PREFIX}${puzzleId}`, 'true');
+};
+
+export const isPuzzleLocked = async (puzzleId: string): Promise<boolean> => {
+    const val = await AsyncStorage.getItem(`${LOCKED_PREFIX}${puzzleId}`);
+    return val === 'true';
+};
 
 export const saveGame = async (name: string, gameState: GameState, difficulty: Difficulty = 'MEDIUM'): Promise<SavedGame> => {
   try {
