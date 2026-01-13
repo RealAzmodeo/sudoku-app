@@ -5,7 +5,7 @@ type Language = 'en' | 'es';
 
 const translations = {
   en: {
-    appTitle: 'Lens',
+    appTitle: 'Famidoku',
     ready: 'Ready to Play?',
     subtitle: 'Scan a board or generate a new challenge.',
     createNew: 'Create New Puzzle',
@@ -57,7 +57,7 @@ const translations = {
     comingSoon: 'Coming Soon!'
   },
   es: {
-    appTitle: 'Lens',
+    appTitle: 'Famidoku',
     ready: '¿Listo para jugar?',
     subtitle: 'Escanea un tablero o crea un reto nuevo.',
     createNew: 'Crear Nuevo Puzzle',
