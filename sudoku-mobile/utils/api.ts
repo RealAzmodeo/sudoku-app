@@ -1,10 +1,17 @@
 import Constants from 'expo-constants';
 import { queuePendingPuzzle, queuePendingScore, getPendingData, clearPendingData } from './storage';
 
-// REPLACE THIS IP WITH YOUR COMPUTER'S LOCAL IP ADDRESS (e.g., 'http://192.168.1.15:3000')
-// If running in Android Emulator, 'http://10.0.2.2:3000' works.
-// For real device, use your PC's IP.
+// --- BACKEND CONFIGURATION ---
+// Option 1: Live Production Backend (Render)
 export const API_URL = 'https://sudoku-app-uyk3.onrender.com'; 
+
+// Option 2: Local Backend (Android Emulator)
+// Use this if you are running the backend locally with 'node server.js' and using Android Emulator
+// export const API_URL = 'http://10.0.2.2:3000';
+
+// Option 3: Local Backend (Physical Device)
+// export const API_URL = 'http://YOUR_PC_IP_ADDRESS:3000'; 
+
 
 export interface ApiScore {
   id?: number;
