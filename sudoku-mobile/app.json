@@ -23,6 +23,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.sudokumobile",
+      "versionCode": 2,
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "CAMERA"
       ]

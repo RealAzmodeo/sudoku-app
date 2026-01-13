@@ -1308,39 +1308,44 @@ const AppContent = () => {
         </Modal>
         
         <Modal visible={showJoinModal} transparent animationType="fade">
-            <View className="flex-1 bg-black/50 items-center justify-center p-6">
-                <View className={clsx("w-full rounded-3xl p-6", isDarkMode ? "bg-zinc-900" : "bg-white")}>
-                    <Text className={clsx("text-lg font-black mb-4", textClass)}>Join Game</Text>
-                    
-                    <View className="flex-row gap-2 mb-4">
-                        <TextInput 
-                            className={clsx("flex-1 px-4 py-3 rounded-xl text-base font-bold border", isDarkMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}
-                            placeholder="Paste Puzzle ID..."
-                            placeholderTextColor={isDarkMode ? "#52525b" : "#94a3b8"}
-                            value={joinGameId}
-                            onChangeText={setJoinGameId}
-                        />
-                        <TouchableOpacity 
-                            onPress={async () => {
-                                const text = await Clipboard.getStringAsync();
-                                setJoinGameId(text);
-                            }}
-                            className={clsx("px-4 items-center justify-center rounded-xl border", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-slate-100 border-slate-200")}
-                        >
-                            <ClipboardPaste size={20} color={isDarkMode ? "white" : "black"} />
-                        </TouchableOpacity>
-                    </View>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <View className="flex-1 bg-black/50 items-center justify-center p-6">
+                    <View className={clsx("w-full rounded-3xl p-6", isDarkMode ? "bg-zinc-900" : "bg-white")}>
+                        <Text className={clsx("text-lg font-black mb-4", textClass)}>Join Game</Text>
+                        
+                        <View className="flex-row gap-2 mb-4">
+                            <TextInput 
+                                className={clsx("flex-1 px-4 py-3 rounded-xl text-base font-bold border", isDarkMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}
+                                placeholder="Paste Puzzle ID..."
+                                placeholderTextColor={isDarkMode ? "#52525b" : "#94a3b8"}
+                                value={joinGameId}
+                                onChangeText={setJoinGameId}
+                            />
+                            <TouchableOpacity 
+                                onPress={async () => {
+                                    const text = await Clipboard.getStringAsync();
+                                    setJoinGameId(text);
+                                }}
+                                className={clsx("px-4 items-center justify-center rounded-xl border", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-slate-100 border-slate-200")}
+                            >
+                                <ClipboardPaste size={20} color={isDarkMode ? "white" : "black"} />
+                            </TouchableOpacity>
+                        </View>
 
-                    <View className="flex-row gap-3">
-                        <TouchableOpacity onPress={() => setShowJoinModal(false)} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-zinc-800 items-center">
-                            <Text className={clsx("font-bold", textClass)}>Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleJoinGame()} className="flex-1 py-3 rounded-xl bg-blue-600 items-center">
-                            <Text className="font-bold text-white">Join</Text>
-                        </TouchableOpacity>
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity onPress={() => setShowJoinModal(false)} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-zinc-800 items-center">
+                                <Text className={clsx("font-bold", textClass)}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleJoinGame()} className="flex-1 py-3 rounded-xl bg-blue-600 items-center">
+                                <Text className="font-bold text-white">Join</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
 
         <Modal visible={showLeaderboard} animationType="slide" presentationStyle="pageSheet">
@@ -1381,33 +1386,41 @@ const AppContent = () => {
         </Modal>
 
         <Modal visible={showOnboarding} animationType="fade" transparent={false}>
-            <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center p-8">
-                <View className="items-center mb-10">
-                    <View className="w-24 h-24 bg-blue-600 rounded-3xl items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
-                        <User size={48} color="white" />
-                    </View>
-                    <Text className="text-3xl font-black text-white text-center mb-2">Welcome!</Text>
-                    <Text className="text-slate-400 text-center text-lg">What should we call you?</Text>
-                </View>
-
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="w-full">
-                    <TextInput 
-                        className="w-full bg-slate-800 border border-slate-700 p-5 rounded-2xl text-white text-xl font-bold text-center mb-6"
-                        placeholder="Your Name"
-                        placeholderTextColor="#64748b"
-                        value={tempName}
-                        onChangeText={setTempName}
-                        autoFocus
-                    />
-                    <TouchableOpacity 
-                        onPress={handleSaveUser}
-                        className={clsx("w-full py-5 rounded-2xl items-center shadow-lg", tempName.trim().length > 0 ? "bg-blue-600" : "bg-slate-700")}
-                        disabled={tempName.trim().length === 0}
+            <SafeAreaView className="flex-1 bg-slate-900" edges={['top', 'bottom']}>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView 
+                        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 32 }}
+                        keyboardShouldPersistTaps="handled"
                     >
-                        <Text className={clsx("font-black text-lg", tempName.trim().length > 0 ? "text-white" : "text-slate-500")}>
-                            Let's Play!
-                        </Text>
-                    </TouchableOpacity>
+                        <View className="items-center mb-10">
+                            <View className="w-24 h-24 bg-blue-600 rounded-3xl items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
+                                <User size={48} color="white" />
+                            </View>
+                            <Text className="text-3xl font-black text-white text-center mb-2">Welcome!</Text>
+                            <Text className="text-slate-400 text-center text-lg">What should we call you?</Text>
+                        </View>
+
+                        <TextInput 
+                            className="w-full bg-slate-800 border border-slate-700 p-5 rounded-2xl text-white text-xl font-bold text-center mb-6"
+                            placeholder="Your Name"
+                            placeholderTextColor="#64748b"
+                            value={tempName}
+                            onChangeText={setTempName}
+                            autoFocus
+                        />
+                        <TouchableOpacity 
+                            onPress={handleSaveUser}
+                            className={clsx("w-full py-5 rounded-2xl items-center shadow-lg", tempName.trim().length > 0 ? "bg-blue-600" : "bg-slate-700")}
+                            disabled={tempName.trim().length === 0}
+                        >
+                            <Text className={clsx("font-black text-lg", tempName.trim().length > 0 ? "text-white" : "text-slate-500")}>
+                                Let's Play!
+                            </Text>
+                        </TouchableOpacity>
+                    </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
         </Modal>
