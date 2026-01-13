@@ -1025,16 +1025,20 @@ const AppContent = () => {
                     </View>
 
                     {/* PAUSE OVERLAY */} 
-                    {isPaused && (
+                    {(isPaused || showSettings) && phase === 'PLAYING' && !isGameFinished && (
                         <View style={{position:'absolute', top:0, left:0, right:0, bottom:0}} className="rounded-2xl overflow-hidden items-center justify-center z-50">
-                            <BlurView intensity={20} tint={isDarkMode ? 'dark' : 'light'} style={{position:'absolute', top:0, left:0, right:0, bottom:0}} />
-                            <TouchableOpacity 
-                                onPress={() => setIsPaused(false)}
-                                className="bg-blue-600 w-20 h-20 rounded-full items-center justify-center shadow-2xl shadow-blue-900"
-                            >
-                                <PlayIcon size={32} color="white" fill="white" />
-                            </TouchableOpacity>
-                            <Text className={clsx("mt-4 text-xl font-black", textClass)}>PAUSA</Text>
+                            <BlurView intensity={100} tint={isDarkMode ? 'dark' : 'light'} style={{position:'absolute', top:0, left:0, right:0, bottom:0}} />
+                            {!showSettings && (
+                                <>
+                                    <TouchableOpacity 
+                                        onPress={() => setIsPaused(false)}
+                                        className="bg-blue-600 w-20 h-20 rounded-full items-center justify-center shadow-2xl shadow-blue-900"
+                                    >
+                                        <PlayIcon size={32} color="white" fill="white" />
+                                    </TouchableOpacity>
+                                    <Text className={clsx("mt-4 text-xl font-black", textClass)}>PAUSA</Text>
+                                </>
+                            )}
                         </View>
                     )}
                 </View>
