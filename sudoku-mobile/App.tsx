@@ -1054,8 +1054,10 @@ const AppContent = () => {
 
                     {/* PAUSE OVERLAY */} 
                     {(isPaused || showSettings) && phase === 'PLAYING' && !isGameFinished && (
-                        <View style={{position:'absolute', top:0, left:0, right:0, bottom:0}} className="rounded-2xl overflow-hidden items-center justify-center z-50">
-                            <BlurView intensity={100} tint={isDarkMode ? 'dark' : 'light'} style={{position:'absolute', top:0, left:0, right:0, bottom:0}} />
+                        <View 
+                            style={{position:'absolute', top:0, left:0, right:0, bottom:0}} 
+                            className={clsx("rounded-2xl items-center justify-center z-50", isDarkMode ? "bg-zinc-950" : "bg-slate-50")}
+                        >
                             {!showSettings && (
                                 <>
                                     <TouchableOpacity 
