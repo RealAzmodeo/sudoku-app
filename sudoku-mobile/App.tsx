@@ -805,53 +805,53 @@ const AppContent = () => {
 
           <View className="flex-1">
             {phase === 'HOME' ? (
-               <View className="flex-1 items-center justify-center p-6">
-                 <View className={clsx("w-full rounded-[2.5rem] p-8 shadow-2xl border items-center space-y-8", cardClass)}>
-                   <View className="w-24 h-24 bg-blue-600 rounded-[2rem] items-center justify-center shadow-xl shadow-blue-500/30">
-                     <PlusCircle size={48} color="white" strokeWidth={2.5} />
+               <View className="flex-1 flex-col justify-between px-6 py-8">
+                   {/* Top Section: Greeting */}
+                   <View className="items-start mt-4">
+                      <View className="w-16 h-16 bg-blue-600 rounded-[1.5rem] items-center justify-center mb-4 shadow-xl shadow-blue-500/30">
+                         <PlusCircle size={32} color="white" strokeWidth={2.5} />
+                      </View>
+                      <Text className={clsx("text-4xl font-black leading-tight", textClass)}>{t('ready')}</Text>
+                      <Text className="text-slate-500 text-lg font-medium">{currentUser ? `Hi, ${currentUser}!` : t('subtitle')}</Text>
                    </View>
                    
-                   <View className="items-center">
-                      <Text className={clsx("text-3xl font-black", textClass)}>{t('ready')}</Text>
-                      <Text className="text-slate-500 text-sm font-medium mt-1">{currentUser ? `Hi, ${currentUser}!` : t('subtitle')}</Text>
-                   </View>
-                   
+                   {/* Middle: Actions */}
                    <View className="w-full gap-4">
                      <TouchableOpacity 
                         onPress={() => setPhase('PLAY_MENU')} 
-                        className="w-full py-5 bg-blue-600 active:bg-blue-500 rounded-[1.5rem] flex-row items-center justify-center gap-3 shadow-lg shadow-blue-900/40"
+                        className="w-full py-6 bg-blue-600 active:bg-blue-500 rounded-[2rem] flex-row items-center justify-center gap-4 shadow-xl shadow-blue-900/40"
                      >
-                       <PlayIcon size={24} color="white" fill="white" />
-                       <Text className="text-white font-black text-xl">Comenzar Partida</Text>
+                       <PlayIcon size={32} color="white" fill="white" />
+                       <Text className="text-white font-black text-2xl tracking-tight">JUGAR</Text>
                      </TouchableOpacity>
 
                      <TouchableOpacity 
                         onPress={() => setPhase('CREATE_MENU')} 
-                        className={clsx("w-full py-5 border-2 rounded-[1.5rem] flex-row items-center justify-center gap-3", isDarkMode ? "bg-zinc-800 border-zinc-700" : "bg-white border-slate-200")}
+                        className={clsx("w-full py-5 border-2 rounded-[2rem] flex-row items-center justify-center gap-3", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-200")}
                      >
                        <PlusCircle size={24} color={isDarkMode ? "white" : "#2563eb"} />
                        <Text className={clsx("font-black text-xl", textClass)}>Crear Sudoku</Text>
                      </TouchableOpacity>
+                   </View>
 
-                     <View className="flex-row gap-4 mt-2">
+                   {/* Bottom: Nav */}
+                   <View className="flex-row gap-4 mb-2">
                         <TouchableOpacity 
                             onPress={() => setPhase('RANKINGS')}
-                            className={clsx("flex-1 py-4 rounded-2xl items-center justify-center gap-1", isDarkMode ? "bg-zinc-800/50" : "bg-slate-100")}
+                            className={clsx("flex-1 py-5 rounded-[1.5rem] items-center justify-center gap-2", isDarkMode ? "bg-zinc-900 border border-zinc-800" : "bg-white border border-slate-100 shadow-sm")}
                         >
-                            <Trophy size={20} color="#f59e0b" />
-                            <Text className={clsx("text-[10px] font-black uppercase", textClass)}>Rankings</Text>
+                            <Trophy size={24} color="#f59e0b" />
+                            <Text className={clsx("text-xs font-black uppercase", textClass)}>Rankings</Text>
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
                             onPress={() => setPhase('LOAD_GAME')}
-                            className={clsx("flex-1 py-4 rounded-2xl items-center justify-center gap-1", isDarkMode ? "bg-zinc-800/50" : "bg-slate-100")}
+                            className={clsx("flex-1 py-5 rounded-[1.5rem] items-center justify-center gap-2", isDarkMode ? "bg-zinc-900 border border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
                         >
-                            <FolderOpen size={20} color="#eab308" />
-                            <Text className={clsx("text-[10px] font-black uppercase", textClass)}>My Saves</Text>
+                            <FolderOpen size={24} color="#eab308" />
+                            <Text className={clsx("text-xs font-black uppercase", textClass)}>Partidas</Text>
                         </TouchableOpacity>
-                     </View>
                    </View>
-                 </View>
                </View>
             ) : phase === 'PLAY_MENU' ? (
                 <View className="flex-1 p-6">
