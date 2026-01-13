@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -114,8 +115,27 @@ const AppContent = () => {
   // New UI/UX State
   const [isPaused, setIsPaused] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [areHapticsEnabled, setAreHapticsEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [areAnimationsEnabled, setAreAnimationsEnabled] = useState(true);
+
+  // Sound System
+  const playSound = async (type: 'click' | 'mistake' | 'win') => {
+      if (!isAudioEnabled) return;
+      try {
+          // TODO: Add sound files to assets/sounds/ and uncomment below
+          // let soundFile;
+          // switch (type) {
+          //     case 'click': soundFile = require('./assets/sounds/click.mp3'); break;
+          //     case 'mistake': soundFile = require('./assets/sounds/mistake.mp3'); break;
+          //     case 'win': soundFile = require('./assets/sounds/win.mp3'); break;
+          // }
+          // const { sound } = await Audio.Sound.createAsync(soundFile);
+          // await sound.playAsync();
+      } catch (error) {
+          // console.log("Sound error", error);
+      }
+  };
 
   // Backend & User State
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -147,13 +167,15 @@ const AppContent = () => {
     const loadData = async () => {
         // User & Settings
         const name = await AsyncStorage.getItem('sudoku_username');
-        const sound = await AsyncStorage.getItem('settings_sound');
+        const haptics = await AsyncStorage.getItem('settings_haptics');
+        const audio = await AsyncStorage.getItem('settings_audio');
         const anim = await AsyncStorage.getItem('settings_anim');
         
         if (name) setCurrentUser(name);
         else setShowOnboarding(true);
         
-        if (sound !== null) setIsSoundEnabled(sound === 'true');
+        if (haptics !== null) setAreHapticsEnabled(haptics === 'true');
+        if (audio !== null) setIsAudioEnabled(audio === 'true');
         if (anim !== null) setAreAnimationsEnabled(anim === 'true');
 
         // Auto-Resume Active Game
@@ -614,20 +636,24 @@ const AppContent = () => {
           targetCell.isValid = isCorrect;
           if (!isCorrect) {
               mistakes += 1;
-              if (isSoundEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              if (areHapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              playSound('mistake');
           } else {
-              if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (areHapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              playSound('click');
           }
         } else {
           targetCell.isValid = true; 
-          if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (areHapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          playSound('click');
         }
 
         const gameOver = mistakes >= prev.maxMistakes;
         const won = !gameOver && isGameWon(newGrid, prev.solvedGrid);
         
         if (won) {
-            if (isSoundEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (areHapticsEnabled) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            playSound('win');
             confettiRef.current?.start();
         }
         
@@ -703,7 +729,8 @@ const AppContent = () => {
 
   const handleCellClick = (r: number, c: number) => {
     if(isPaused) return;
-    if (isSoundEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (areHapticsEnabled) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // playSound('click'); // Optional: maybe too noisy for just selecting
     setGameState(prev => {
       if (!prev) return null;
       return { ...prev, selectedCell: [r, c] };
@@ -1174,12 +1201,25 @@ const AppContent = () => {
                         {/* Game Audio */} 
                         <View className="mb-6">
                             <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Audio & Effects</Text>
-                            <TouchableOpacity onPress={() => { setIsSoundEnabled(!isSoundEnabled); persistSettings('settings_sound', !isSoundEnabled); }} className={clsx("flex-row items-center justify-between p-5 rounded-2xl mb-2", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                            
+                            <TouchableOpacity onPress={() => { setIsAudioEnabled(!isAudioEnabled); persistSettings('settings_audio', !isAudioEnabled); }} className={clsx("flex-row items-center justify-between p-5 rounded-2xl mb-2", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
                                 <View className="flex-row items-center gap-3">
-                                    {isSoundEnabled ? <Volume2 size={20} color="#3b82f6" /> : <VolumeX size={20} color="#ef4444" />}
+                                    {isAudioEnabled ? <Volume2 size={20} color="#3b82f6" /> : <VolumeX size={20} color="#ef4444" />}
                                     <Text className={clsx("font-bold text-base", textClass)}>Sound Effects</Text>
                                 </View>
-                                <View className={clsx("w-12 h-6 rounded-full p-1", isSoundEnabled ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
+                                <View className={clsx("w-12 h-6 rounded-full p-1", isAudioEnabled ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
+                                    <View className="w-4 h-4 bg-white rounded-full" />
+                                </View>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={() => { setAreHapticsEnabled(!areHapticsEnabled); persistSettings('settings_haptics', !areHapticsEnabled); }} className={clsx("flex-row items-center justify-between p-5 rounded-2xl mb-2", isDarkMode ? "bg-zinc-800" : "bg-slate-50")}>
+                                <View className="flex-row items-center gap-3">
+                                    <View className="rotate-45">
+                                        <Keyboard size={20} color="#10b981" />
+                                    </View>
+                                    <Text className={clsx("font-bold text-base", textClass)}>Haptic Feedback</Text>
+                                </View>
+                                <View className={clsx("w-12 h-6 rounded-full p-1", areHapticsEnabled ? "bg-blue-600 items-end" : "bg-slate-300 items-start")}>
                                     <View className="w-4 h-4 bg-white rounded-full" />
                                 </View>
                             </TouchableOpacity>
