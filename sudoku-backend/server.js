@@ -6,7 +6,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const multer = require('multer');
 
 // Configure Gemini
-const GEN_AI_KEY = process.env.GEMINI_API_KEY || "AIzaSyBUg_kvKuzz-Rul8GqHXXf1TzBOKMN1zp0";
+// SECURITY: API Key must be set in Environment Variables (Render Dashboard)
+const GEN_AI_KEY = process.env.GEMINI_API_KEY;
+
+if (!GEN_AI_KEY) {
+    console.error("❌ CRITICAL ERROR: GEMINI_API_KEY is not set in environment variables!");
+}
+
 const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
 // Using the available model confirmed via diagnostic
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
