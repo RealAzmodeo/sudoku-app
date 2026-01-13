@@ -13,3 +13,5 @@ android/
 ios/
 coverage/
 .gradle_cache/
+gradle_home/
+temp/

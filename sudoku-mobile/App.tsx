@@ -494,6 +494,26 @@ const AppContent = () => {
     setPhase('HOME');
   };
 
+  const handleQuitGame = () => {
+    Alert.alert(
+      "Abandonar Partida",
+      "¿Seguro que quieres ir al inicio? Perderás el progreso actual.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Abandonar", 
+          style: "destructive", 
+          onPress: () => {
+            setShowSettings(false);
+            setGameState(null);
+            setPhase('HOME');
+            setError(null);
+          }
+        }
+      ]
+    );
+  };
+
   const handleRetry = () => {
     if (!gameState) return;
     const initialGrid = JSON.parse(JSON.stringify(gameState.history[0]));
@@ -919,7 +939,7 @@ const AppContent = () => {
                           <View>
                             <Text className="text-[8px] text-slate-400 font-black uppercase">{t('time')}</Text>
                             <Text className={clsx("text-lg font-mono font-black", textClass)}>
-                              {Math.floor(gameState!.timer / 60).toString().padStart(2, '0')}:{gameState!.timer % 60).toString().padStart(2, '0')}
+                              {Math.floor(gameState!.timer / 60).toString().padStart(2, '0')}:{(gameState!.timer % 60).toString().padStart(2, '0')}
                             </Text>
                           </View>
                       </View>
@@ -1151,6 +1171,22 @@ const AppContent = () => {
                                 </TouchableOpacity>
                             </View>
                         </View>
+
+                        {/* Game Actions */}
+                        {phase === 'PLAYING' && (
+                            <View className="mb-6">
+                                <Text className="text-slate-400 font-black uppercase text-[10px] mb-3 ml-1">Partida</Text>
+                                <TouchableOpacity 
+                                    onPress={handleQuitGame}
+                                    className={clsx("flex-row items-center justify-between p-5 rounded-2xl", isDarkMode ? "bg-red-900/20" : "bg-red-50")}
+                                >
+                                    <View className="flex-row items-center gap-3">
+                                        <RotateCcw size={20} color="#ef4444" />
+                                        <Text className="font-bold text-base text-red-500">Abandonar Partida</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
             </View>
