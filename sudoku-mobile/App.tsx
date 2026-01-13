@@ -67,7 +67,19 @@ import {
   generateSudoku,
   checkCompletion
 } from './utils/sudokuLogic';
-import { saveGame, getSavedGames, deleteSavedGame, SavedGame, autoSaveGame, getAutoSave, lockPuzzle, isPuzzleLocked } from './utils/storage';
+import {
+  saveGame, 
+  getSavedGames, 
+  deleteSavedGame, 
+  SavedGame, 
+  autoSaveGame, 
+  getAutoSave, 
+  lockPuzzle, 
+  isPuzzleLocked,
+  setActiveGameId,
+  getActiveGameId,
+  clearActiveGameId
+} from './utils/storage';
 import { LanguageProvider, useLanguage } from './utils/i18n';
 import { api } from './utils/api';
 import { GridCell } from './components/GridCell';
@@ -127,9 +139,10 @@ const AppContent = () => {
   const { t, language, setLanguage } = useLanguage();
   const toggleLanguage = () => setLanguage(language === 'en' ? 'es' : 'en');
 
-  // --- INITIAL LOAD & ONBOARDING ---
+  // --- INITIAL LOAD & ONBOARDING & AUTO-RESUME ---
   useEffect(() => {
-    const loadUser = async () => {
+    const loadData = async () => {
+        // User & Settings
         const name = await AsyncStorage.getItem('sudoku_username');
         const sound = await AsyncStorage.getItem('settings_sound');
         const anim = await AsyncStorage.getItem('settings_anim');
@@ -139,8 +152,22 @@ const AppContent = () => {
         
         if (sound !== null) setIsSoundEnabled(sound === 'true');
         if (anim !== null) setAreAnimationsEnabled(anim === 'true');
+
+        // Auto-Resume Active Game
+        const activeId = await getActiveGameId();
+        if (activeId) {
+            const autoSave = await getAutoSave(activeId);
+            if (autoSave && !autoSave.isGameOver && !autoSave.isWon) {
+                setGameState(autoSave);
+                setPhase('PLAYING');
+                setIsPaused(true); // Start paused so they realize what happened
+            } else {
+                // Was finished but flag stuck? clear it
+                await clearActiveGameId();
+            }
+        }
     };
-    loadUser();
+    loadData();
   }, []);
 
   const handleSaveUser = async () => {
@@ -178,7 +205,15 @@ const AppContent = () => {
       interval = setInterval(() => {
         setGameState(prev => {
             if(!prev) return null;
-            return { ...prev, timer: prev.timer + 1 };
+            const newTimer = prev.timer + 1;
+            
+            // PERIODIC SAVE (Anti-Cheat: Save Time)
+            // Save every 5 seconds to capture elapsed time even if no moves made
+            if (newTimer % 5 === 0 && prev.puzzleId) {
+                autoSaveGame(prev.puzzleId, { ...prev, timer: newTimer });
+            }
+
+            return { ...prev, timer: newTimer };
         });
       }, 1000);
     }
@@ -237,6 +272,7 @@ const AppContent = () => {
         const uniqueId = `${difficulty}-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
         
         api.savePuzzle(uniqueId, initialGrid, solvedGrid, difficulty, currentUser || "Anonymous");
+        await setActiveGameId(uniqueId); // Set as Active
 
         setGameState({
           grid,
@@ -279,6 +315,7 @@ const AppContent = () => {
     const progress = await getAutoSave(id);
     if (progress) {
         setGameState(progress);
+        await setActiveGameId(id); // Reactivate this one
         setPhase('PLAYING');
         setShowJoinModal(false);
         return;
@@ -295,6 +332,8 @@ const AppContent = () => {
         }
         
         const grid = initializeGrid(puzzle.initialGrid);
+        await setActiveGameId(puzzle.id); // Set as Active
+
         setGameState({
           grid,
           solvedGrid: puzzle.solvedGrid,
@@ -364,6 +403,7 @@ const AppContent = () => {
         Alert.alert("Scan Results", "The puzzle was scanned but seems to have errors or is unsolvable. Please correct it in Edit Mode.");
     } else {
         api.savePuzzle(scannedId, detectedGrid, solution, "SCANNED", currentUser || "Anonymous");
+        setActiveGameId(scannedId); // Set Active
 
         setGameState({
             grid,
@@ -406,6 +446,7 @@ const AppContent = () => {
         const customId = `CUSTOM-${Date.now().toString().slice(-6)}-${Math.floor(Math.random()*1000)}`;
         const initialGridValues = gameState.grid.map(row => row.map(cell => cell.value || 0));
         await api.savePuzzle(customId, initialGridValues, solution, "CUSTOM", currentUser || "Anonymous");
+        await setActiveGameId(customId); // Set Active
 
         setGameState(prev => {
           if (!prev) return null;
@@ -470,6 +511,7 @@ const AppContent = () => {
   const handleLoadGame = (game: SavedGame) => {
     setGameState(game.gameState);
     setCurrentSaveId(game.id);
+    if(game.gameState.puzzleId) setActiveGameId(game.gameState.puzzleId); // Resume tracking
     setPhase('PLAYING');
     setError(null);
   };
@@ -490,6 +532,7 @@ const AppContent = () => {
     if (currentSaveId) {
       await handleDeleteGame(currentSaveId);
     }
+    await clearActiveGameId(); // Clear active tracking
     setGameState(null);
     setPhase('HOME');
   };
@@ -503,7 +546,8 @@ const AppContent = () => {
         { 
           text: "Abandonar", 
           style: "destructive", 
-          onPress: () => {
+          onPress: async () => {
+            await clearActiveGameId(); // Explicitly abandon
             setShowSettings(false);
             setGameState(null);
             setPhase('HOME');
@@ -573,25 +617,6 @@ const AppContent = () => {
         const gameOver = mistakes >= prev.maxMistakes;
         const won = !gameOver && isGameWon(newGrid, prev.solvedGrid);
         
-        // --- REWARD CHECK ---
-        if (isCorrect && !gameOver && !won) {
-            const completions = checkCompletion(newGrid, r, c, prev.solvedGrid);
-            if (completions.length > 0) {
-                const x = 16 + 4 + (c * cellSize) + (c * 2) + (Math.floor(c/3) * 4) + (cellSize/2);
-                const relY = 4 + (r * cellSize) + (r * 2) + (Math.floor(r/3) * 4) + (cellSize/2);
-                const y = gridPageY + relY;
-
-                const newRewards = completions.map((type, i) => ({
-                    id: `${Date.now()}-${i}`,
-                    type,
-                    startPos: { x, y }
-                }));
-                
-                setRewards(prevR => [...prevR, ...newRewards]);
-            }
-        }
-        // --------------------
-
         const newState = {
           ...prev,
           grid: newGrid,
@@ -602,8 +627,11 @@ const AppContent = () => {
         };
 
         if (prev.puzzleId) {
-            autoSaveGame(prev.puzzleId, newState);
-            if (gameOver || won) lockPuzzle(prev.puzzleId);
+            autoSaveGame(prev.puzzleId, newState); // Instant save on every move
+            if (gameOver || won) {
+                lockPuzzle(prev.puzzleId);
+                clearActiveGameId(); // Game finished, clear active status
+            }
         }
 
         return newState;

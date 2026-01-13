@@ -12,6 +12,31 @@ export interface SavedGame {
 const SAVES_KEY = '@sudoku_lens_saves_v1';
 const AUTOSAVE_PREFIX = '@sudoku_autosave_';
 const LOCKED_PREFIX = '@sudoku_locked_';
+const ACTIVE_GAME_ID_KEY = '@sudoku_active_game_id';
+
+export const setActiveGameId = async (puzzleId: string) => {
+    try {
+        await AsyncStorage.setItem(ACTIVE_GAME_ID_KEY, puzzleId);
+    } catch (e) {
+        console.error("Failed to set active game", e);
+    }
+};
+
+export const getActiveGameId = async (): Promise<string | null> => {
+    try {
+        return await AsyncStorage.getItem(ACTIVE_GAME_ID_KEY);
+    } catch (e) {
+        return null;
+    }
+};
+
+export const clearActiveGameId = async () => {
+    try {
+        await AsyncStorage.removeItem(ACTIVE_GAME_ID_KEY);
+    } catch (e) {
+        console.error("Failed to clear active game", e);
+    }
+};
 
 export const autoSaveGame = async (puzzleId: string, gameState: GameState) => {
   if (!puzzleId) return;
