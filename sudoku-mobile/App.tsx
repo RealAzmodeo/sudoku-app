@@ -263,18 +263,34 @@ const AppContent = () => {
   }, [phase]);
 
   const fetchCommunityPuzzles = async () => {
-      const [list, statuses] = await Promise.all([
+      const [list, localStatusMap] = await Promise.all([
           api.getCommunityPuzzles(),
           getLocalPuzzleStatuses()
       ]);
-      setCommunityPuzzles(list);
-      setLocalStatuses(statuses);
+      
+      // Merge remote completion status with local started status
+      const mergedList = list.map((p: any) => ({
+          ...p,
+          status: p.userCompleted === 1 ? 'COMPLETED' : (localStatusMap[p.id] === 'STARTED' ? 'STARTED' : 'NEW')
+      }));
+      
+      setCommunityPuzzles(mergedList);
   };
 
   const loadSavedGamesList = async () => {
     const games = await getSavedGames();
     setSavedGames(games);
   };
+// ... (keep existing code)
+// ...
+// Inside renderItem:
+                                            {/* Status Badge */}
+                                            {item.status === 'COMPLETED' && (
+                                                <View className="bg-emerald-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">HECHO</Text></View>
+                                            )}
+                                            {item.status === 'STARTED' && (
+                                                <View className="bg-amber-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">EN CURSO</Text></View>
+                                            )}
 
   const startManualSetup = () => {
     const empty = createEmptyGrid();
@@ -981,9 +997,8 @@ const AppContent = () => {
                                 
                                 if (!matchesSearch) return false;
 
-                                const status = localStatuses[p.id] || 'NEW';
                                 if (filterStatus === 'ALL') return true;
-                                return status === filterStatus;
+                                return p.status === filterStatus;
                             })}
                             keyExtractor={(item) => item.id}
                             showsVerticalScrollIndicator={false}
@@ -1007,11 +1022,11 @@ const AppContent = () => {
                                                 {item.difficulty}
                                             </Text>
                                             
-                                            {/* Local Status Badge */}
-                                            {localStatuses[item.id] === 'COMPLETED' && (
+                                            {/* Status Badge */}
+                                            {item.status === 'COMPLETED' && (
                                                 <View className="bg-emerald-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">HECHO</Text></View>
                                             )}
-                                            {localStatuses[item.id] === 'STARTED' && (
+                                            {item.status === 'STARTED' && (
                                                 <View className="bg-amber-500 rounded-full px-2 py-0.5"><Text className="text-[10px] text-white font-black">EN CURSO</Text></View>
                                             )}
 

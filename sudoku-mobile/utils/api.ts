@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { queuePendingPuzzle, queuePendingScore, getPendingData, clearPendingData } from './storage';
+import { queuePendingPuzzle, queuePendingScore, getPendingData, clearPendingData, getInstallationId } from './storage';
 
 // --- BACKEND CONFIGURATION ---
 // Option 1: Live Production Backend (Render)
@@ -12,13 +12,13 @@ export const API_URL = 'https://sudoku-app-uyk3.onrender.com';
 // Option 3: Local Backend (Physical Device)
 // export const API_URL = 'http://YOUR_PC_IP_ADDRESS:3000'; 
 
-
 export interface ApiScore {
   id?: number;
   puzzleId: string;
   playerName: string;
   timeSeconds: number;
   mistakes: number;
+  installationId?: string;
   timestamp?: string;
 }
 
@@ -55,7 +55,8 @@ export const api = {
   // Get Community Puzzles
   getCommunityPuzzles: async () => {
     try {
-        const response = await fetch(`${API_URL}/api/puzzles`);
+        const installId = await getInstallationId();
+        const response = await fetch(`${API_URL}/api/puzzles?installationId=${installId}`);
         if (!response.ok) throw new Error("Failed to fetch");
         return await response.json();
     } catch (e) {
@@ -79,10 +80,13 @@ export const api = {
   // Submit a score
   submitScore: async (score: ApiScore) => {
     try {
+      const installId = await getInstallationId();
+      const finalScore = { ...score, installationId: installId };
+      
       const response = await fetch(`${API_URL}/api/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(score),
+        body: JSON.stringify(finalScore),
       });
       if (!response.ok) throw new Error("Server error");
       return await response.json();

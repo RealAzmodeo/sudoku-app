@@ -53,10 +53,16 @@ const db = new sqlite3.Database('./sudoku.db', (err) => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       puzzleId TEXT,
       playerName TEXT,
+      installationId TEXT,
       timeSeconds INTEGER,
       mistakes INTEGER,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Migration: Add installationId column if missing
+    try {
+        db.run(`ALTER TABLE scores ADD COLUMN installationId TEXT`, () => {});
+    } catch(e) {}
   }
 });
 
@@ -67,17 +73,26 @@ app.get('/api/ping', (req, res) => {
     res.json({ status: "alive", timestamp: new Date() });
 });
 
-// New Route: List Community Puzzles
+// New Route: List Community Puzzles with User Status
 app.get('/api/puzzles', (req, res) => {
+    const { installationId } = req.query;
+    
     const query = `
-      SELECT p.id, p.difficulty, p.author, p.createdAt, COUNT(s.id) as plays 
+      SELECT 
+        p.id, 
+        p.difficulty, 
+        p.author, 
+        p.createdAt, 
+        COUNT(s.id) as plays,
+        MAX(CASE WHEN s.installationId = ? THEN 1 ELSE 0 END) as userCompleted
       FROM puzzles p
       LEFT JOIN scores s ON p.id = s.puzzleId
       GROUP BY p.id
       ORDER BY p.createdAt DESC 
       LIMIT 50
     `;
-    db.all(query, [], (err, rows) => {
+    
+    db.all(query, [installationId || ''], (err, rows) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
@@ -177,10 +192,10 @@ app.get('/api/puzzle/:id', (req, res) => {
 
 // 3. Submit a Score
 app.post('/api/score', (req, res) => {
-  const { puzzleId, playerName, timeSeconds, mistakes } = req.body;
+  const { puzzleId, playerName, timeSeconds, mistakes, installationId } = req.body;
   
-  const query = `INSERT INTO scores (puzzleId, playerName, timeSeconds, mistakes) VALUES (?, ?, ?, ?)`;
-  db.run(query, [puzzleId, playerName, timeSeconds, mistakes], function(err) {
+  const query = `INSERT INTO scores (puzzleId, playerName, timeSeconds, mistakes, installationId) VALUES (?, ?, ?, ?, ?)`;
+  db.run(query, [puzzleId, playerName, timeSeconds, mistakes, installationId || 'unknown'], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }

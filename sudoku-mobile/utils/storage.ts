@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameState, Difficulty } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface SavedGame {
   id: string;
@@ -13,6 +14,20 @@ const SAVES_KEY = '@sudoku_lens_saves_v1';
 const AUTOSAVE_PREFIX = '@sudoku_autosave_';
 const LOCKED_PREFIX = '@sudoku_locked_';
 const ACTIVE_GAME_ID_KEY = '@sudoku_active_game_id';
+const INSTALLATION_ID_KEY = '@sudoku_installation_id';
+
+export const getInstallationId = async (): Promise<string> => {
+    try {
+        let id = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
+        if (!id) {
+            id = uuidv4();
+            await AsyncStorage.setItem(INSTALLATION_ID_KEY, id);
+        }
+        return id;
+    } catch (e) {
+        return 'unknown-device';
+    }
+};
 
 export const setActiveGameId = async (puzzleId: string) => {
     try {
