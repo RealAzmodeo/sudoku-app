@@ -933,13 +933,14 @@ const AppContent = () => {
                                 <View 
                                     className={clsx("p-4 mb-3 rounded-2xl border flex-row items-center justify-between", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
                                 >
-                                    <View className="flex-1">
-                                        <View className="flex-row items-center gap-2 mb-1">
-                                            <Text className={clsx("font-black text-base capitalize", 
-                                                item.difficulty === 'EASY' ? 'text-emerald-500' :
-                                                item.difficulty === 'MEDIUM' ? 'text-blue-500' :
-                                                item.difficulty === 'HARD' ? 'text-amber-500' :
-                                                item.difficulty === 'SCANNED' ? 'text-purple-500' : 'text-rose-500'
+                                    <View className="flex-1 pr-2">
+                                        {/* Difficulty & Date Badge */}
+                                        <View className="flex-row items-center gap-2 mb-2">
+                                            <Text className={clsx("font-black text-xs px-2 py-0.5 rounded-md overflow-hidden", 
+                                                item.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                item.difficulty === 'MEDIUM' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                item.difficulty === 'HARD' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                                'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
                                             )}>
                                                 {item.difficulty}
                                             </Text>
@@ -948,39 +949,43 @@ const AppContent = () => {
                                             </Text>
                                         </View>
                                         
-                                        <View className="flex-row items-center gap-2 mb-2">
-                                            <TouchableOpacity 
-                                                onPress={async () => {
-                                                    await Clipboard.setStringAsync(item.id);
-                                                    Alert.alert("Copiado!", "ID del puzzle copiado.");
-                                                }}
-                                                className="bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md flex-row items-center gap-1"
-                                            >
-                                                <Text className="text-[10px] text-slate-500 font-mono">{item.id.substring(0, 8)}...</Text>
-                                                <Copy size={10} color="#94a3b8" />
-                                            </TouchableOpacity>
-                                        </View>
+                                        {/* FULL PUZZLE ID */}
+                                        <Text className={clsx("text-base font-black font-mono leading-tight mb-1", textClass)}>
+                                            {item.id}
+                                        </Text>
 
+                                        {/* Author */}
                                         <View className="flex-row items-center gap-1.5">
                                             <User size={12} color="#94a3b8" />
-                                            <Text className={clsx("text-xs font-bold", textClass)}>
-                                                Por {item.author || "Anónimo"}
+                                            <Text className="text-xs text-slate-500 font-medium">
+                                                by {item.author || "Anónimo"}
                                             </Text>
                                         </View>
                                     </View>
 
-                                    <View className="items-end gap-3">
+                                    <View className="items-end gap-3 pl-2">
                                         <View className="flex-row items-center gap-1 bg-slate-50 dark:bg-zinc-800 px-2 py-1 rounded-lg">
                                             <Users size={12} color="#64748b" />
                                             <Text className={clsx("text-xs font-bold", textClass)}>{item.plays || 0}</Text>
                                         </View>
 
-                                        <TouchableOpacity 
-                                            onPress={() => handleJoinGame(item.id)}
-                                            className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full"
-                                        >
-                                            <PlayIcon size={20} color="#3b82f6" fill="#3b82f6" />
-                                        </TouchableOpacity>
+                                        <View className="flex-row gap-2">
+                                            <TouchableOpacity 
+                                                onPress={() => {
+                                                    fetchLeaderboard(item.id);
+                                                }}
+                                                className="bg-slate-100 dark:bg-zinc-800 p-2 rounded-full border border-slate-200 dark:border-zinc-700"
+                                            >
+                                                <Trophy size={18} color="#f59e0b" />
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity 
+                                                onPress={() => handleJoinGame(item.id)}
+                                                className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full"
+                                            >
+                                                <PlayIcon size={20} color="#3b82f6" fill="#3b82f6" />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 </View>
                             )}
