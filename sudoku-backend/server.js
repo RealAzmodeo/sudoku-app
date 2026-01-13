@@ -69,7 +69,14 @@ app.get('/api/ping', (req, res) => {
 
 // New Route: List Community Puzzles
 app.get('/api/puzzles', (req, res) => {
-    const query = `SELECT id, difficulty, author, createdAt FROM puzzles ORDER BY createdAt DESC LIMIT 50`;
+    const query = `
+      SELECT p.id, p.difficulty, p.author, p.createdAt, COUNT(s.id) as plays 
+      FROM puzzles p
+      LEFT JOIN scores s ON p.id = s.puzzleId
+      GROUP BY p.id
+      ORDER BY p.createdAt DESC 
+      LIMIT 50
+    `;
     db.all(query, [], (err, rows) => {
         if (err) {
             return res.status(500).json({ error: err.message });

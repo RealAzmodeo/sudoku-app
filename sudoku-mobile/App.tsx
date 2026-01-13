@@ -930,8 +930,7 @@ const AppContent = () => {
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ paddingBottom: 40 }}
                             renderItem={({ item }) => (
-                                <TouchableOpacity 
-                                    onPress={() => handleJoinGame(item.id)}
+                                <View 
                                     className={clsx("p-4 mb-3 rounded-2xl border flex-row items-center justify-between", isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-slate-100 shadow-sm")}
                                 >
                                     <View className="flex-1">
@@ -948,6 +947,20 @@ const AppContent = () => {
                                                 {new Date(item.createdAt).toLocaleDateString()}
                                             </Text>
                                         </View>
+                                        
+                                        <View className="flex-row items-center gap-2 mb-2">
+                                            <TouchableOpacity 
+                                                onPress={async () => {
+                                                    await Clipboard.setStringAsync(item.id);
+                                                    Alert.alert("Copiado!", "ID del puzzle copiado.");
+                                                }}
+                                                className="bg-slate-100 dark:bg-zinc-800 px-2 py-1 rounded-md flex-row items-center gap-1"
+                                            >
+                                                <Text className="text-[10px] text-slate-500 font-mono">{item.id.substring(0, 8)}...</Text>
+                                                <Copy size={10} color="#94a3b8" />
+                                            </TouchableOpacity>
+                                        </View>
+
                                         <View className="flex-row items-center gap-1.5">
                                             <User size={12} color="#94a3b8" />
                                             <Text className={clsx("text-xs font-bold", textClass)}>
@@ -955,8 +968,21 @@ const AppContent = () => {
                                             </Text>
                                         </View>
                                     </View>
-                                    <ChevronLeft size={20} color="#3b82f6" style={{ transform: [{ rotate: '180deg' }]}} />
-                                </TouchableOpacity>
+
+                                    <View className="items-end gap-3">
+                                        <View className="flex-row items-center gap-1 bg-slate-50 dark:bg-zinc-800 px-2 py-1 rounded-lg">
+                                            <Users size={12} color="#64748b" />
+                                            <Text className={clsx("text-xs font-bold", textClass)}>{item.plays || 0}</Text>
+                                        </View>
+
+                                        <TouchableOpacity 
+                                            onPress={() => handleJoinGame(item.id)}
+                                            className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full"
+                                        >
+                                            <PlayIcon size={20} color="#3b82f6" fill="#3b82f6" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             )}
                         />
                     )}
