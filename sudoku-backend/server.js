@@ -208,6 +208,22 @@ app.get('/api/leaderboard', (req, res) => {
   });
 });
 
+// 5. Update Author Name (Renaming User)
+app.put('/api/update-author', (req, res) => {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) return res.status(400).json({ error: "Names required" });
+
+    // Update in Puzzles
+    db.run(`UPDATE puzzles SET author = ? WHERE author = ?`, [newName, oldName], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Also update in Scores if we want to keep consistency (Optional but good)
+        db.run(`UPDATE scores SET playerName = ? WHERE playerName = ?`, [newName, oldName], (err2) => {
+             res.json({ message: "Author updated", changes: this.changes });
+        });
+    });
+});
+
 // Start Server - Version 1.1 with Gemini
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

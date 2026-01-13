@@ -163,5 +163,18 @@ export const api = {
         console.error("API Error (scanSudokuImage):", e);
         return null;
     }
+  },
+
+  // Update Author Name
+  updateAuthorName: async (oldName: string, newName: string) => {
+      try {
+          await fetch(`${API_URL}/api/update-author`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ oldName, newName }),
+          });
+      } catch (e) {
+          console.error("Failed to update author name", e);
+      }
   }
 };
