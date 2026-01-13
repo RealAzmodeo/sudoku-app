@@ -1173,7 +1173,7 @@ const AppContent = () => {
                             <View className="flex-1 flex-row gap-[2px]">
                                 {row.map((cell, c) => (
                                   <React.Fragment key={`${r}-${c}`}>
-                                      <GridCell 
+                                      <GridCellMemo 
                                         cell={cell} 
                                         row={r} 
                                         col={c} 

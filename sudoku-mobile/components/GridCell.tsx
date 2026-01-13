@@ -174,3 +174,17 @@ export const GridCell: React.FC<GridCellProps> = ({
     </AnimatedTouchableOpacity>
   );
 };
+
+export const GridCellMemo = React.memo(GridCell, (prev, next) => {
+    return (
+        prev.cell.value === next.cell.value &&
+        prev.cell.notes.length === next.cell.notes.length &&
+        prev.cell.isValid === next.cell.isValid &&
+        prev.isSelected === next.isSelected &&
+        prev.isHighlighted === next.isHighlighted &&
+        prev.isSameNumber === next.isSameNumber &&
+        prev.isConflict === next.isConflict &&
+        prev.isDarkMode === next.isDarkMode &&
+        prev.animationsEnabled === next.animationsEnabled
+    );
+});
