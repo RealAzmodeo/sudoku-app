@@ -2,7 +2,7 @@
 # ⚠️ CRITICAL: DO NOT DELETE OR MODIFY THIS FILE WITHOUT EXPLICIT USER AUTHORIZATION ⚠️
 
 **Project:** Sudoku Lens AI (Family Multiplayer + AI Scanner)
-**Last Updated:** January 12, 2026
+**Last Updated:** January 14, 2026
 **Status:** Production (APK Released, Server Live on Render)
 
 ---
@@ -11,7 +11,7 @@
 
 - **Mobile App:** React Native (Expo SDK 54). Folder: `sudoku-mobile/`
 - **Backend:** Node.js (Express) + SQLite (Locally stored db file `sudoku.db`). Folder: `sudoku-backend/`
-- **AI Integration:** Google Gemini 2.5 Flash via `@google/generative-ai`.
+- **AI Integration:** Google Gemini 1.5 Flash via `@google/generative-ai`.
 - **Hosting:** Render.com (Web Service).
 
 ---
@@ -30,15 +30,15 @@
 
 ### 🅱️ Backend & AI (Render + Gemini)
 **Service URL:** `https://sudoku-app-uyk3.onrender.com`
-**Gemini Model:** `gemini-2.5-flash`
+**Gemini Model:** `gemini-1.5-flash` (Updated from 2.5 which was unstable/invalid).
 **Dependencies:**
 - Must use `@google/generative-ai` version `^0.21.0` or higher to support new models.
 - **Deploy Trigger:** The root `package.json` has a `postinstall` script: `"cd sudoku-backend && npm install"`. This ensures Render installs the backend dependencies correctly even though the root directory is set to `sudoku-backend`.
 
 ### 📱 Mobile App Config
+- **Package Name:** `com.german.famidoku` (Production)
 - **API Endpoint:** configured in `sudoku-mobile/utils/api.ts`.
 - **Keystores:**
-    - Debug: Standard Expo debug keystore.
     - Release: `sudoku-mobile/android/app/keystores/release.keystore`
     - Alias: `sudoku-key` | Password: `sudokupassword`
 
@@ -56,12 +56,16 @@
 *   **Cause:** The API Key provided has specific access rights or the library version defaults to `v1beta`.
 *   **Fix:**
     - Library updated to `0.21.0`.
-    - Model name set explicitly to `gemini-2.5-flash` (User has access to this specific model).
+    - Model name set explicitly to `gemini-1.5-flash`.
     - API Key: `AIzaSyBUg...` (Environment Variable or Hardcoded in server.js).
 
 ### 3. "Puzzle ID Not Found" on Client
 *   **Cause:** User created a puzzle on a local/dev server instance, and another user tries to fetch it from Prod.
 *   **Fix:** Create a NEW puzzle. It will be uploaded to the live Render DB.
+
+### 4. Android Build Failures (Unresolved Reference R / BuildConfig)
+*   **Cause:** Changing the `package` in `app.json` or `namespace` in `build.gradle` WITHOUT moving the Java/Kotlin files.
+*   **Fix:** If you change the package name (e.g., to `com.german.famidoku`), you MUST move `MainActivity.kt` and `MainApplication.kt` to `android/app/src/main/java/com/german/famidoku/`.
 
 ---
 
@@ -97,9 +101,27 @@ If logic changes in `server.js` don't seem to apply, FORCE `Clear Cache` on Rend
 
 ---
 
+## 6. BUILD LEARNINGS & ARCHITECTURE UPDATES (Jan 14, 2026)
+**Critical maintenance performed to enable stable production builds:**
+
+1.  **Project Root Cleanup:** 
+    - Removed legacy web files (`App.tsx`, `vite.config.ts`, etc.) from root.
+    - Root is now cleaner: `sudoku-mobile`, `sudoku-backend`, and `scripts` only.
+
+2.  **Package Name Migration:**
+    - Migrated from `com.anonymous.sudokumobile` -> `com.german.famidoku`.
+    - **CRITICAL:** When renaming, the folder structure in `android/app/src/main/java/...` MUST match the new package path. We moved files to `.../java/com/german/famidoku/` to fix build errors.
+
+3.  **TypeScript & Reanimated:**
+    - Fixed strict type errors in `GridCell` and `RewardOverlay`.
+    - `react-native-reanimated` transform styles often require `as any` casting in strict TypeScript environments to avoid union type mismatch errors.
+    - Boolean props in `App.tsx` must be explicitly coerced (e.g., `!!condition`) to avoid passing `boolean | null` to components expecting `boolean`.
+
+4.  **AI Model Update:**
+    - Downgraded/Corrected backend model from `gemini-2.5-flash` (unstable/non-existent public alias) to `gemini-1.5-flash`.
+
 **🤖 NOTE TO AI AGENTS:**
 The app now uses a complex phase-based navigation (`AppPhase`). 
 Auto-save keys follow the pattern `@sudoku_autosave_{puzzleId}`. 
 Locked puzzles use `@sudoku_locked_{puzzleId}`.
 Always prioritize local progress (`getAutoSave`) before fetching virgen puzzles from the API in `handleJoinGame`.
-
