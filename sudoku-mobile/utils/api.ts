@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import { queuePendingPuzzle, queuePendingScore, getPendingData, clearPendingData } from './storage';
 
 // --- BACKEND CONFIGURATION ---

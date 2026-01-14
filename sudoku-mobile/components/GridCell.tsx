@@ -28,7 +28,7 @@ interface GridCellProps {
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-export const GridCell: React.FC<GridCellProps> = ({
+const GridCellComponent: React.FC<GridCellProps> = ({
   cell,
   row,
   col,
@@ -174,3 +174,22 @@ export const GridCell: React.FC<GridCellProps> = ({
     </AnimatedTouchableOpacity>
   );
 };
+
+export const GridCell = React.memo(GridCellComponent, (prev, next) => {
+  return (
+    prev.isSelected === next.isSelected &&
+    prev.isHighlighted === next.isHighlighted &&
+    prev.isSameNumber === next.isSameNumber &&
+    prev.isConflict === next.isConflict &&
+    prev.isDarkMode === next.isDarkMode &&
+    prev.animationsEnabled === next.animationsEnabled &&
+    prev.cell.value === next.cell.value &&
+    prev.cell.isValid === next.cell.isValid &&
+    prev.cell.isInitial === next.cell.isInitial &&
+    prev.cell.isHinted === next.cell.isHinted &&
+    // Simple array length check for notes is usually enough for performance, 
+    // but strict equality is safer. Notes are small arrays.
+    prev.cell.notes.length === next.cell.notes.length &&
+    prev.cell.notes.every((val, index) => val === next.cell.notes[index])
+  );
+});

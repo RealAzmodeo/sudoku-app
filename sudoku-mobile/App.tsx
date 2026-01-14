@@ -276,6 +276,17 @@ const AppContent = () => {
     setSavedGames(games);
   };
 
+  // --- AUTO-SAVE EFFECT (Debounced) ---
+  useEffect(() => {
+    if (!gameState || !gameState.puzzleId || phase !== 'PLAYING' || gameState.isGameOver) return;
+
+    const timeoutId = setTimeout(() => {
+        autoSaveGame(gameState.puzzleId!, gameState);
+    }, 1000); // Save after 1 second of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [gameState?.grid, gameState?.mistakes, gameState?.isWon]);
+
   const startManualSetup = () => {
     const empty = createEmptyGrid();
     setGameState({
@@ -288,7 +299,7 @@ const AppContent = () => {
       selectedCell: [0, 0],
       isNoteMode: false,
       timer: 0,
-      history: [JSON.parse(JSON.stringify(empty))],
+      history: [empty],
       settings: { autoCheck: true }
     });
     setPhase('SETUP');
@@ -321,7 +332,7 @@ const AppContent = () => {
           selectedCell: [0, 0],
           isNoteMode: false,
           timer: 0,
-          history: [JSON.parse(JSON.stringify(grid))],
+          history: [grid],
           settings: { autoCheck: true },
           puzzleId: uniqueId
         });
@@ -381,7 +392,7 @@ const AppContent = () => {
           selectedCell: [0, 0],
           isNoteMode: false,
           timer: 0,
-          history: [JSON.parse(JSON.stringify(grid))],
+          history: [grid],
           settings: { autoCheck: true },
           puzzleId: puzzle.id
         });
@@ -433,7 +444,7 @@ const AppContent = () => {
             selectedCell: [0, 0],
             isNoteMode: false,
             timer: 0,
-            history: [JSON.parse(JSON.stringify(grid))],
+            history: [grid],
             settings: { autoCheck: true }
         });
         setPhase('SETUP');
@@ -452,7 +463,7 @@ const AppContent = () => {
             selectedCell: [0, 0],
             isNoteMode: false,
             timer: 0,
-            history: [JSON.parse(JSON.stringify(grid))],
+            history: [grid],
             settings: { autoCheck: true },
             puzzleId: scannedId 
         });
@@ -496,7 +507,7 @@ const AppContent = () => {
             ...prev,
             grid: finalGrid,
             solvedGrid: solution!,
-            history: [JSON.parse(JSON.stringify(finalGrid))],
+            history: [finalGrid],
             puzzleId: customId 
           };
         });
@@ -518,7 +529,7 @@ const AppContent = () => {
               ...prev,
               grid: finalGrid,
               solvedGrid: solution!,
-              history: [JSON.parse(JSON.stringify(finalGrid))],
+              history: [finalGrid],
               puzzleId: undefined 
             };
         });
@@ -597,7 +608,7 @@ const AppContent = () => {
 
   const handleRetry = () => {
     if (!gameState) return;
-    const initialGrid = JSON.parse(JSON.stringify(gameState.history[0]));
+    const initialGrid = gameState.history[0]; // Use first history state
     setGameState(prev => prev ? ({
         ...prev,
         grid: initialGrid,
@@ -617,7 +628,11 @@ const AppContent = () => {
       
       if (phase === 'PLAYING' && cell.isInitial) return prev;
       
-      const newGrid = JSON.parse(JSON.stringify(prev.grid));
+      // Structural Sharing instead of JSON parse/stringify
+      const newGrid = [...prev.grid];
+      newGrid[r] = [...prev.grid[r]];
+      newGrid[r][c] = { ...prev.grid[r][c] };
+      
       const targetCell = newGrid[r][c];
 
       if (phase === 'SETUP') {
@@ -675,15 +690,13 @@ const AppContent = () => {
           mistakes,
           isGameOver: gameOver,
           isWon: won,
-          history: [...prev.history, JSON.parse(JSON.stringify(newGrid))]
+          history: [...prev.history, newGrid] // Push newGrid structure
         };
 
-        if (prev.puzzleId) {
-            autoSaveGame(prev.puzzleId, newState); // Instant save on every move
-            if (gameOver || won) {
-                lockPuzzle(prev.puzzleId);
-                clearActiveGameId(); // Game finished, clear active status
-            }
+        if (prev.puzzleId && (gameOver || won)) {
+            autoSaveGame(prev.puzzleId, newState); // Instant save ONLY on finish
+            lockPuzzle(prev.puzzleId);
+            clearActiveGameId(); // Game finished, clear active status
         }
 
         return newState;
@@ -697,16 +710,16 @@ const AppContent = () => {
       const [r, c] = prev.selectedCell;
       if (phase === 'PLAYING' && prev.grid[r][c].isInitial) return prev;
       
-      const newGrid = JSON.parse(JSON.stringify(prev.grid));
+      const newGrid = [...prev.grid];
+      newGrid[r] = [...prev.grid[r]];
+      newGrid[r][c] = { ...prev.grid[r][c] };
+
       newGrid[r][c].value = null;
       newGrid[r][c].notes = [];
       newGrid[r][c].isValid = true;
       if (phase === 'SETUP') newGrid[r][c].isInitial = false;
       
-      const newState = { ...prev, grid: newGrid };
-      if (prev.puzzleId && phase === 'PLAYING') autoSaveGame(prev.puzzleId, newState);
-      
-      return newState;
+      return { ...prev, grid: newGrid };
     });
   };
 
@@ -716,7 +729,9 @@ const AppContent = () => {
       const newHistory = [...prev.history];
       newHistory.pop();
       const lastState = newHistory[newHistory.length - 1];
-      return { ...prev, grid: JSON.parse(JSON.stringify(lastState)), history: newHistory };
+      // We use lastState directly. Since our state updates always clone-on-write,
+      // it is safe to reference this grid for the 'current' state.
+      return { ...prev, grid: lastState, history: newHistory };
     });
   };
 
@@ -728,7 +743,11 @@ const AppContent = () => {
       if (prev.grid[r][c].value === prev.solvedGrid[r][c]) return prev;
 
       const correctValue = prev.solvedGrid[r][c];
-      const newGrid = JSON.parse(JSON.stringify(prev.grid));
+      
+      const newGrid = [...prev.grid];
+      newGrid[r] = [...prev.grid[r]];
+      newGrid[r][c] = { ...prev.grid[r][c] };
+
       newGrid[r][c].value = correctValue;
       newGrid[r][c].isValid = true;
       newGrid[r][c].isInitial = true; 
