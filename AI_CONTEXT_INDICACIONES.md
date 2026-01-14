@@ -3,16 +3,17 @@
 
 **Project:** Sudoku Lens AI (Family Multiplayer + AI Scanner)
 **Last Updated:** January 14, 2026
-**Status:** Production (APK Released, Server Live on Render)
+**Status:** Production (APK Released, Server Live on Render, Database on Neon.tech)
 
 ---
 
 ## 1. PROJECT ARCHITECTURE
 
 - **Mobile App:** React Native (Expo SDK 54). Folder: `sudoku-mobile/`
-- **Backend:** Node.js (Express) + SQLite (Locally stored db file `sudoku.db`). Folder: `sudoku-backend/`
+- **Backend:** Node.js (Express) + PostgreSQL (Hosted on Neon.tech). Folder: `sudoku-backend/`
 - **AI Integration:** Google Gemini 1.5 Flash via `@google/generative-ai`.
 - **Hosting:** Render.com (Web Service).
+- **Database:** Neon.tech (PostgreSQL) for persistent storage.
 
 ---
 
@@ -26,14 +27,14 @@
     ```properties
     sdk.dir=D:/Programa/AndroidStudio/Sdk
     ```
-3.  **Gradle Cache:** We sometimes use `C:\SudokuGradleCache` as `GRADLE_USER_HOME` to avoid user folder issues.
+3.  **Gradle Cache:** We use `C:\SudokuGradleCache` as `GRADLE_USER_HOME` to avoid user folder issues.
 
-### 🅱️ Backend & AI (Render + Gemini)
+### 🅱️ Backend & AI (Render + Gemini + Neon)
 **Service URL:** `https://sudoku-app-uyk3.onrender.com`
-**Gemini Model:** `gemini-1.5-flash` (Updated from 2.5 which was unstable/invalid).
-**Dependencies:**
-- Must use `@google/generative-ai` version `^0.21.0` or higher to support new models.
-- **Deploy Trigger:** The root `package.json` has a `postinstall` script: `"cd sudoku-backend && npm install"`. This ensures Render installs the backend dependencies correctly even though the root directory is set to `sudoku-backend`.
+**Gemini Model:** `gemini-1.5-flash`
+**Database:** PostgreSQL via Neon.tech. 
+- **Variable:** `DATABASE_URL` must be set in Render environment variables.
+- **SSL:** Connection pool in `server.js` requires `ssl: { rejectUnauthorized: false }` for Neon.
 
 ### 📱 Mobile App Config
 - **Package Name:** `com.german.famidoku` (Production)
@@ -47,81 +48,41 @@
 ## 3. KNOWN ISSUES & FIXES
 
 ### 1. Render Deployment Fails (404 / 500 / Module Not Found)
-*   **Cause:** Render caches old `node_modules` or fails to install dependencies in the subdirectory.
-*   **Fix:**
-    1.  Ensure `sudoku-backend/package.json` contains `@google/generative-ai` and `multer`.
-    2.  On Render Dashboard, perform **Manual Deploy -> Clear Build Cache & Deploy**.
+*   **Fix:** Ensure `sudoku-backend/package.json` contains `@google/generative-ai`, `multer`, and `pg`. Perform **Clear Build Cache & Deploy** on Render if issues persist.
 
 ### 2. Gemini "Model Not Found" (404)
-*   **Cause:** The API Key provided has specific access rights or the library version defaults to `v1beta`.
-*   **Fix:**
-    - Library updated to `0.21.0`.
-    - Model name set explicitly to `gemini-1.5-flash`.
-    - API Key: `AIzaSyBUg...` (Environment Variable or Hardcoded in server.js).
+*   **Fix:** Use `gemini-1.5-flash`. Ensure `@google/generative-ai` is `^0.21.0`.
 
-### 3. "Puzzle ID Not Found" on Client
-*   **Cause:** User created a puzzle on a local/dev server instance, and another user tries to fetch it from Prod.
-*   **Fix:** Create a NEW puzzle. It will be uploaded to the live Render DB.
+### 3. Data Persistence (Render)
+*   **Fix:** Migrated from SQLite to **PostgreSQL (Neon.tech)**. SQLite files in Render are ephemeral and deleted on every deploy. PostgreSQL ensures data (puzzles, scores) persists.
 
 ### 4. Android Build Failures (Unresolved Reference R / BuildConfig)
-*   **Cause:** Changing the `package` in `app.json` or `namespace` in `build.gradle` WITHOUT moving the Java/Kotlin files.
-*   **Fix:** If you change the package name (e.g., to `com.german.famidoku`), you MUST move `MainActivity.kt` and `MainApplication.kt` to `android/app/src/main/java/com/german/famidoku/`.
+*   **Fix:** When changing the package name in `app.json` and `build.gradle`, you MUST move the Kotlin files to the matching directory: `sudoku-mobile/android/app/src/main/java/com/german/famidoku/`.
 
 ---
 
 ## 4. HOW TO BUILD & DEPLOY
 
 ### Generate Release APK (Windows)
-Do not use `npx expo build:android` locally due to username issues unless environment vars are set.
 **Safe Command (PowerShell):**
 ```powershell
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; $env:GRADLE_USER_HOME="C:\SudokuGradleCache"; $env:TMP="D:\Proyectos\Sudoku\temp"; $env:TEMP="D:\Proyectos\Sudoku\temp"; cd sudoku-mobile\android; .\gradlew.bat assembleRelease
 ```
 **Output:** `sudoku-mobile\android\app\build\outputs\apk\release\app-release.apk`
 
-### Deploy Backend
-Push changes to `main` branch. Render auto-deploys.
-If logic changes in `server.js` don't seem to apply, FORCE `Clear Cache` on Render.
-
 ---
 
-## 5. RECENT CHANGES (Changelog)
-- **v5.0 (Redesign):** 
-    - Complete Home redesign (Play vs Create hierarchy).
-    - Unified Settings Modal (Theme, Sound, VFX, Language).
-    - Mandatory User Onboarding (Username persistence).
-    - Auto-save System: Progress saved per `puzzleId` locally.
-    - Puzzle Locking: Completed games (Win/Loss) are locked to prevent cheating.
-    - Community Puzzles: List of shared puzzles from the family server.
-    - Game Pause: Blurs board and stops timer.
-- **v4.0:** Cloud Sync for Scanned Puzzles.
-- **v3.0:** Gemini 2.5 Flash Scanner.
-- **v2.0:** Multiplayer Leaderboard.
-- **v1.0:** Local offline game.
+## 5. RECENT CHANGES & LEARNINGS (Jan 14, 2026)
 
----
-
-## 6. BUILD LEARNINGS & ARCHITECTURE UPDATES (Jan 14, 2026)
-**Critical maintenance performed to enable stable production builds:**
-
-1.  **Project Root Cleanup:** 
-    - Removed legacy web files (`App.tsx`, `vite.config.ts`, etc.) from root.
-    - Root is now cleaner: `sudoku-mobile`, `sudoku-backend`, and `scripts` only.
-
-2.  **Package Name Migration:**
-    - Migrated from `com.anonymous.sudokumobile` -> `com.german.famidoku`.
-    - **CRITICAL:** When renaming, the folder structure in `android/app/src/main/java/...` MUST match the new package path. We moved files to `.../java/com/german/famidoku/` to fix build errors.
-
-3.  **TypeScript & Reanimated:**
-    - Fixed strict type errors in `GridCell` and `RewardOverlay`.
-    - `react-native-reanimated` transform styles often require `as any` casting in strict TypeScript environments to avoid union type mismatch errors.
-    - Boolean props in `App.tsx` must be explicitly coerced (e.g., `!!condition`) to avoid passing `boolean | null` to components expecting `boolean`.
-
-4.  **AI Model Update:**
-    - Downgraded/Corrected backend model from `gemini-2.5-flash` (unstable/non-existent public alias) to `gemini-1.5-flash`.
+1.  **Root Cleanup:** Removed all legacy web/Vite files. Project is now strictly Backend + Mobile.
+2.  **Database Migration:** Migrated from SQLite to PostgreSQL (Neon.tech). Updated `server.js` to use `pg` Pool and adapted all SQL queries. 
+    - *Note:* Postgres uses `SERIAL` for auto-increment and `TIMESTAMP` for dates.
+    - *Note:* Postgres returns column names in lowercase (e.g., `row.initialgrid` instead of `row.initialGrid`).
+3.  **Production Branding:** Changed package to `com.german.famidoku` and moved all Android source files to the correct package directory structure.
+4.  **TypeScript Fixes:** Applied `as any` to Reanimated transforms and coerced boolean props (`!!`) in `App.tsx` to satisfy strict type checking.
+5.  **Force Push:** Performed a force push to the remote repository to establish the cleaned-up and migrated state as the definitive `feature/auth` branch.
 
 **🤖 NOTE TO AI AGENTS:**
-The app now uses a complex phase-based navigation (`AppPhase`). 
-Auto-save keys follow the pattern `@sudoku_autosave_{puzzleId}`. 
-Locked puzzles use `@sudoku_locked_{puzzleId}`.
-Always prioritize local progress (`getAutoSave`) before fetching virgen puzzles from the API in `handleJoinGame`.
+Always use `pool.query()` for database operations. 
+The database initializes itself via `initDB()` in `server.js`.
+Ensure `DATABASE_URL` is present for the backend to start.
