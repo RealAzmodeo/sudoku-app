@@ -11,7 +11,7 @@
 
 - **Mobile App:** React Native (Expo SDK 54). Folder: `sudoku-mobile/`
 - **Backend:** Node.js (Express) + PostgreSQL (Hosted on Neon.tech). Folder: `sudoku-backend/`
-- **AI Integration:** Google Gemini 1.5 Flash via `@google/generative-ai`.
+- **AI Integration:** Google Gemini 2.5 Flash via `@google/generative-ai`.
 - **Hosting:** Render.com (Web Service).
 - **Database:** Neon.tech (PostgreSQL) for persistent storage.
 
@@ -31,7 +31,7 @@
 
 ### 🅱️ Backend & AI (Render + Gemini + Neon)
 **Service URL:** `https://sudoku-app-uyk3.onrender.com`
-**Gemini Model:** `gemini-1.5-flash`
+**Gemini Model:** `gemini-2.5-flash`
 **Database:** PostgreSQL via Neon.tech. 
 - **Variable:** `DATABASE_URL` must be set in Render environment variables.
 - **SSL:** Connection pool in `server.js` requires `ssl: { rejectUnauthorized: false }` for Neon.
@@ -51,7 +51,7 @@
 *   **Fix:** Ensure `sudoku-backend/package.json` contains `@google/generative-ai`, `multer`, and `pg`. Perform **Clear Build Cache & Deploy** on Render if issues persist.
 
 ### 2. Gemini "Model Not Found" (404)
-*   **Fix:** Use `gemini-1.5-flash`. Ensure `@google/generative-ai` is `^0.21.0`.
+*   **Fix:** Use `gemini-2.5-flash`. Ensure `@google/generative-ai` is `^0.21.0`.
 
 ### 3. Data Persistence (Render)
 *   **Fix:** Migrated from SQLite to **PostgreSQL (Neon.tech)**. SQLite files in Render are ephemeral and deleted on every deploy. PostgreSQL ensures data (puzzles, scores) persists.
@@ -80,9 +80,11 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"; $env:GRADLE_USER_H
     - *Note:* Postgres returns column names in lowercase (e.g., `row.initialgrid` instead of `row.initialGrid`).
 3.  **Production Branding:** Changed package to `com.german.famidoku` and moved all Android source files to the correct package directory structure.
 4.  **TypeScript Fixes:** Applied `as any` to Reanimated transforms and coerced boolean props (`!!`) in `App.tsx` to satisfy strict type checking.
-5.  **Force Push:** Performed a force push to the remote repository to establish the cleaned-up and migrated state as the definitive `feature/auth` branch.
+5.  **AI Model Update:** Enforced the use of `gemini-2.5-flash` as mandated by the user. All references to older models have been removed to prevent future regressions.
+6.  **Force Push:** Performed a force push to the remote repository to establish the cleaned-up and migrated state as the definitive `feature/auth` branch.
 
 **🤖 NOTE TO AI AGENTS:**
+The app MUST use `gemini-2.5-flash`. Do not attempt to downgrade.
 Always use `pool.query()` for database operations. 
 The database initializes itself via `initDB()` in `server.js`.
 Ensure `DATABASE_URL` is present for the backend to start.

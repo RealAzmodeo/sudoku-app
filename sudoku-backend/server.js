@@ -13,7 +13,7 @@ if (!GEN_AI_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // Configure Multer (Uploads in memory)
 const upload = multer({ storage: multer.memoryStorage() });
@@ -103,7 +103,7 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
             return res.status(400).json({ error: 'No image uploaded' });
         }
 
-        console.log("Analyzing image with Gemini 1.5 Flash...");
+        console.log("Analyzing image with Gemini 2.5 Flash...");
         const imagePart = {
             inlineData: {
                 data: req.file.buffer.toString("base64"),
