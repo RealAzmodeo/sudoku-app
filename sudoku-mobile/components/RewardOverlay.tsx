@@ -58,7 +58,7 @@ const FlyingEmoji = ({ type, startPos, onComplete }: RewardProps) => {
       { translateX: translateX.value },
       { translateY: translateY.value },
       { scale: scale.value }
-    ],
+    ] as any,
     opacity: opacity.value,
     position: 'absolute',
     top: 0,

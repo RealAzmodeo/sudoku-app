@@ -1178,8 +1178,8 @@ const AppContent = () => {
                                         row={r} 
                                         col={c} 
                                         isSelected={!isGameFinished && gameState!.selectedCell?.[0] === r && gameState!.selectedCell?.[1] === c} 
-                                        isHighlighted={!isGameFinished && gameState!.selectedCell && (gameState!.selectedCell[0] === r || gameState!.selectedCell[1] === c || (Math.floor(r / 3) === Math.floor(gameState!.selectedCell[0] / 3) && Math.floor(c / 3) === Math.floor(gameState!.selectedCell[1] / 3)))}
-                                        isSameNumber={!isGameFinished && gameState!.selectedCell && gameState!.grid[gameState!.selectedCell[0]][gameState!.selectedCell[1]].value === cell.value && cell.value !== null} 
+                                        isHighlighted={!!(!isGameFinished && gameState!.selectedCell && (gameState!.selectedCell[0] === r || gameState!.selectedCell[1] === c || (Math.floor(r / 3) === Math.floor(gameState!.selectedCell[0] / 3) && Math.floor(c / 3) === Math.floor(gameState!.selectedCell[1] / 3))))}
+                                        isSameNumber={!!(!isGameFinished && gameState!.selectedCell && gameState!.grid[gameState!.selectedCell[0]][gameState!.selectedCell[1]].value === cell.value && cell.value !== null)} 
                                         isConflict={gameState!.settings.autoCheck && cell.value !== null && getConflicts(gameState!.grid, r, c)} 
                                         onClick={() => handleCellClick(r, c)}
                                         isDarkMode={isDarkMode}

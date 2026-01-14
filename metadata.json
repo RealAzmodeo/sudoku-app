@@ -1,7 +1,0 @@
-{
-  "name": "Sudoku Lens AI",
-  "description": "Scan physical Sudoku puzzles from images or your camera and play them digitally with smart features like annotations, real-time error checking, and progress tracking.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}

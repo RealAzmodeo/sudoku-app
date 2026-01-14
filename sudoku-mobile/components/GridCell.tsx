@@ -95,7 +95,7 @@ export const GridCell: React.FC<GridCellProps> = ({
     transform: [
       { scale: scale.value },
       { rotate: `${rotation.value}deg` }
-    ],
+    ] as any,
     opacity: opacity.value,
     zIndex: isSelected ? 50 : 1 // Ensure selected cell is always on top
   }));

@@ -15,7 +15,7 @@ if (!GEN_AI_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEN_AI_KEY);
 // Using the available model confirmed via diagnostic
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 // Configure Multer (Uploads in memory)
 const upload = multer({ storage: multer.memoryStorage() });
