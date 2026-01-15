@@ -87,6 +87,7 @@ import {
 import { LanguageProvider, useLanguage } from './utils/i18n';
 import { api } from './utils/api';
 import { GridCell } from './components/GridCell';
+import { SudokuBoard } from './components/SudokuBoard';
 import { ControlPanel } from './components/ControlPanel';
 import { SaveModal } from './components/SaveModal';
 import { SavedGamesList } from './components/SavedGamesList';
