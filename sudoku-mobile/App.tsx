@@ -1177,63 +1177,7 @@ const AppContent = () => {
                 )}
 
                 <View className="items-center justify-center flex-1 px-4 relative">
-                    <View 
-                        ref={gridRef}
-                        onLayout={() => {
-                            gridRef.current?.measure((x, y, w, h, pageX, pageY) => {
-                                setGridPageY(pageY);
-                            });
-                        }}
-                        className={clsx("w-full aspect-square rounded-2xl p-1", isDarkMode ? "bg-zinc-950" : "bg-slate-100", gridBorderClass, gridOpacityClass)}
-                    >
-                      <View className="flex-1 flex-col gap-[2px]">
-                        {gameState!.grid.map((row, r) => (
-                          <React.Fragment key={r}>
-                            <View className="flex-1 flex-row gap-[2px]">
-                                {row.map((cell, c) => (
-                                  <React.Fragment key={`${r}-${c}`}>
-                                      <GridCell 
-                                        cell={cell} 
-                                        row={r} 
-                                        col={c} 
-                                        isSelected={!isGameFinished && gameState!.selectedCell?.[0] === r && gameState!.selectedCell?.[1] === c} 
-                                        isHighlighted={!!(!isGameFinished && gameState!.selectedCell && (gameState!.selectedCell[0] === r || gameState!.selectedCell[1] === c || (Math.floor(r / 3) === Math.floor(gameState!.selectedCell[0] / 3) && Math.floor(c / 3) === Math.floor(gameState!.selectedCell[1] / 3))))}
-                                        isSameNumber={!!(!isGameFinished && gameState!.selectedCell && gameState!.grid[gameState!.selectedCell[0]][gameState!.selectedCell[1]].value === cell.value && cell.value !== null)} 
-                                        isConflict={gameState!.settings.autoCheck && cell.value !== null && getConflicts(gameState!.grid, r, c)} 
-                                        onClick={() => handleCellClick(r, c)}
-                                        isDarkMode={isDarkMode}
-                                        animationsEnabled={areAnimationsEnabled}
-                                        style={{ width: cellSize, height: cellSize }}
-                                      />
-                                      {(c + 1) % 3 === 0 && c !== 8 && <View className="w-1 flex-none" />}
-                                  </React.Fragment>
-                                ))}
-                            </View>
-                            {(r + 1) % 3 === 0 && r !== 8 && <View className="h-1 flex-none" />}
-                          </React.Fragment>
-                        ))}
-                      </View>
-                    </View>
-
-                    {/* PAUSE OVERLAY */} 
-                    {(isPaused || showSettings) && phase === 'PLAYING' && !isGameFinished && (
-                        <View 
-                            style={{position:'absolute', top:0, left:0, right:0, bottom:0}} 
-                            className={clsx("rounded-2xl items-center justify-center z-50", isDarkMode ? "bg-zinc-950" : "bg-slate-50")}
-                        >
-                            {!showSettings && (
-                                <>
-                                    <TouchableOpacity 
-                                        onPress={() => setIsPaused(false)}
-                                        className="bg-blue-600 w-20 h-20 rounded-full items-center justify-center shadow-2xl shadow-blue-900"
-                                    >
-                                        <PlayIcon size={32} color="white" fill="white" />
-                                    </TouchableOpacity>
-                                    <Text className={clsx("mt-4 text-xl font-black", textClass)}>PAUSA</Text>
-                                </>
-                            )}
-                        </View>
-                    )}
+                    {renderedBoard}
                 </View>
 
                 <View className="mt-4">
